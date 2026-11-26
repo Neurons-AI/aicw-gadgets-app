@@ -57,6 +57,15 @@
   .health { border: 1px solid var(--ui-border); border-radius: 14px; padding: 14px 16px; margin-bottom: 18px; background: var(--ui-surface); }
   .health.bad { border-color: color-mix(in srgb, var(--ui-bad) 55%, var(--ui-border)); }
   .health.warn { border-color: color-mix(in srgb, var(--ui-warn, #c98a00) 55%, var(--ui-border)); }
+  .health.ok { padding: 8px 14px; }
+  .health.ok .h-rows, .health.ok #hCheckOut { display: none; }
+  .health.ok.open .h-rows { display: grid; }
+  .health.ok.open #hCheckOut:not([hidden]) { display: block; }
+  .h-head { cursor: pointer; user-select: none; }
+  .h-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ui-good); flex: none; }
+  .health.bad .h-dot { background: var(--ui-bad); } .health.warn .h-dot { background: var(--ui-warn, #c98a00); }
+  .h-more { font-size: 12.5px; color: var(--ui-muted-fg); }
+  .health:not(.ok) .h-more { display: none; }
   .h-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .h-head b { font-size: 15px; }
   .h-sum { flex: 1; font-size: 13.5px; color: var(--ui-muted-fg); }
@@ -220,7 +229,7 @@
   <!-- My gadgets -->
   <section data-pane="home">
     <div class="health" id="health">
-      <div class="h-head"><b id="hTitle" data-t="Status|Tình trạng"></b><span class="h-sum" id="hSum"></span>
+      <div class="h-head" id="hHead" role="button" tabindex="0"><i class="h-dot" id="hDot"></i><b id="hTitle" data-t="Status|Tình trạng"></b><span class="h-sum" id="hSum"></span><span class="h-more" id="hMore"></span>
         <button class="btn sm" id="hCheck" data-t="Check now|Kiểm tra ngay"></button></div>
       <div class="h-rows" id="hRows"></div>
       <div class="small" id="hCheckOut" hidden></div>
@@ -721,7 +730,9 @@ function renderHealth(r) {
   }
   $('#hRows').innerHTML = rows.join('');
   renderChains();
-  $('#health').className = 'health ' + (worst === 'ok' ? '' : worst);
+  const open = $('#health').classList.contains('open');
+  $('#health').className = 'health ' + worst + (open ? ' open' : '');
+  $('#hMore').textContent = open ? T('Hide|Thu gọn') : T('Details|Chi tiết');
   $('#hSum').textContent = worst === 'ok' ? T('Everything works|Mọi thứ đang chạy tốt') : worst === 'bad' ? T('Something is broken, see below|Có chỗ đang lỗi, xem bên dưới') : T('Works, with a warning|Đang chạy, có cảnh báo');
   $('#hSum').style.color = worst === 'bad' ? 'var(--ui-bad)' : worst === 'warn' ? 'var(--ui-warn, #c98a00)' : 'var(--ui-good)';
 }
@@ -732,6 +743,11 @@ async function loadHealth(check) {
   catch (e) { $('#hRows').innerHTML = hRow('bad', T('Could not read the status|Không đọc được tình trạng'), esc(e.message)); $('#health').className = 'health bad'; }
   finally { H.busy = false; }
 }
+$('#hHead').onclick = (e) => {
+  if (e.target.closest('#hCheck')) return;
+  const h = $('#health'); if (!h.classList.contains('ok')) return;
+  h.classList.toggle('open'); $('#hMore').textContent = h.classList.contains('open') ? T('Hide|Thu gọn') : T('Details|Chi tiết');
+};
 $('#hCheck').onclick = async () => {
   const b = $('#hCheck'), out = $('#hCheckOut');
   b.disabled = true; out.hidden = false; out.textContent = T('Asking the assistant one short question…|Đang hỏi thử trợ lý một câu ngắn…');
@@ -739,6 +755,7 @@ $('#hCheck').onclick = async () => {
     const r = await aicw.call('health', { check: true });
     renderHealth(r);
     const c = r.check;
+    $('#health').classList.add('open'); $('#hMore').textContent = T('Hide|Thu gọn');
     out.innerHTML = !c ? T('The AI computer could not be reached, so the assistant was not asked.|Không liên lạc được với máy chủ AI nên chưa hỏi được trợ lý.')
       : c.ok ? T(`✓ The assistant answered in ${(c.ms / 1000).toFixed(1)} s.|✓ Trợ lý trả lời sau ${(c.ms / 1000).toFixed(1)} giây.`)
       : `<span style="color:var(--ui-bad)">✗ ${esc(c.error)}</span><span class="sub" style="display:block;margin-top:4px;color:var(--ui-muted-fg);font-size:12px;word-break:break-word">${esc(c.detail || '')}</span>`;
