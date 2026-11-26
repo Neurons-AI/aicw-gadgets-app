@@ -724,7 +724,7 @@ function renderHealth(r) {
     for (const g of gs) {
       const n = `<b>${esc(g.name || 'Dou')}</b>`;
       if (g.online) rows.push(hRow(g.lastError ? 'warn' : 'ok', T(`${n} is connected|${n} đang kết nối`) + (g.ssid ? ' · Wi-Fi ' + esc(g.ssid) : ''), g.lastError ? T('last try|lần nói gần nhất') + ': ' + esc(g.lastError.text) + ' · ' + ago(g.lastError.at) : g.lastTurnAt ? T('last chat|lần nói gần nhất') + ' ' + ago(g.lastTurnAt) : ''));
-      else rows.push(hRow('off', T(`${n} is asleep or offline|${n} đang ngủ hoặc mất kết nối`), g.lastSeen ? T('last seen|thấy lần cuối') + ' ' + ago(g.lastSeen) : ''));
+      else { bump('warn'); rows.push(hRow('warn', T(`${n} is asleep or offline|${n} đang ngủ hoặc mất kết nối`), g.lastSeen ? T('last seen|thấy lần cuối') + ' ' + ago(g.lastSeen) : '')); }
       if (g.online && g.lastError) bump('warn');
     }
   }
@@ -733,7 +733,7 @@ function renderHealth(r) {
   const open = $('#health').classList.contains('open');
   $('#health').className = 'health ' + worst + (open ? ' open' : '');
   $('#hMore').textContent = open ? T('Hide|Thu gọn') : T('Details|Chi tiết');
-  $('#hSum').textContent = worst === 'ok' ? T('Everything works|Mọi thứ đang chạy tốt') : worst === 'bad' ? T('Something is broken, see below|Có chỗ đang lỗi, xem bên dưới') : T('Works, with a warning|Đang chạy, có cảnh báo');
+  $('#hSum').textContent = worst === 'ok' ? T('Everything works|Mọi thứ đang chạy tốt') : worst === 'bad' ? T('Something is broken, see below|Có chỗ đang lỗi, xem bên dưới') : T('A gadget is offline, or there is a warning|Có gadget mất kết nối hoặc có cảnh báo');
   $('#hSum').style.color = worst === 'bad' ? 'var(--ui-bad)' : worst === 'warn' ? 'var(--ui-warn, #c98a00)' : 'var(--ui-good)';
 }
 async function loadHealth(check) {
