@@ -480,6 +480,7 @@ export const commands = {
     ownerOnly(ctx);
     let ids = [];
     try {
+      // ctx.host.tool runs on the platform's shell capability: keep "shell" in permissions.host (ctx.host.shell).
       const out = await ctx.host.tool('agents_list', {});
       const list = out?.details?.agents || out?.details || [];
       ids = (Array.isArray(list) ? list : []).map((a) => (typeof a === 'string' ? { id: a, name: a } : { id: a.id, name: a.name || a.identity?.name || a.id })).filter((a) => a.id);
