@@ -78,6 +78,62 @@ async function newHostIdentity(ctx) {
   const fs = await import('node:fs'), path = await import('node:path');
   fs.writeFileSync(path.join(ctx.dataDir || process.cwd(), 'host-identity.hex'), crypto.randomBytes(32).toString('hex')); // aicw:shared
 }
+
+// ---------- the connect code: which host a gadget talks to ----------
+// A host machine (bridge + agent) shows "aicw-gadget:relay:<hostId>". Any setup machine
+// pastes it; the part after "aicw-gadget:" is what the gadget stores as aicw_host.
+const CODE_PREFIX = 'aicw-gadget:';
+function parseConnectCode(code) {
+  let c = String(code || '').trim();
+  const m = c.match(/aicw-gadget:(\S+)/i); if (m) c = m[1];
+  c = c.split('#')[0];
+  const u = c.match(/agent\.aicoworker\.net\/[gs]\/([a-z0-9]{40,64})/i); if (u) c = 'relay:' + u[1].toLowerCase();
+  if (/^[a-z2-7]{52}$/i.test(c)) c = 'relay:' + c.toLowerCase();
+  if (/^relay:[a-z2-7]{52}$/i.test(c)) return c.toLowerCase();
+  if (/^(\d{1,3}\.){3}\d{1,3}(:\d{2,5})?$/.test(c)) return c;
+  if (/^[a-z0-9.-]{1,63}(:\d{2,5})?$/i.test(c) && c.includes('.')) return c;
+  throw new Error('Mã kết nối không đúng. Mở AICW Gadgets trên máy chủ, mục Tổng quan, bấm Sao chép mã.');
+}
+// The name people see for a computer: its own name, without ".local".
+async function computerName() {
+  const os = await import('node:os');
+  return String(os.hostname() || 'Máy tính').replace(/\.(local|lan|home)$/i, '').slice(0, 40);
+}
+function nameInCode(code) {
+  const m = String(code || '').match(/#([^\s]+)/);
+  try { return m ? decodeURIComponent(m[1]).slice(0, 60) : ''; } catch { return ''; }
+}
+async function targetHost(ctx) {
+  const t = await ctx.store.get('targetHost'); // aicw:shared — host this setup machine sends gadgets to
+  if (t && t.host) return t;
+  const idn = await hostIdentity(ctx);
+  return { host: 'relay:' + idn.id, self: true };
+}
+const bleAnswers = new Map(); // jobId -> resolve
+const recentTurns = new Map(); // mac -> Map(audio fingerprint -> time)
+
+// ---------- speech engines: try in order until one works ----------
+const eng = (e) => (e === 'local:gemma' ? { engine: 'local', model: 'gemma' } : e && e !== 'auto' ? { engine: e } : {});
+function sttOrder(chosen) {
+  const list = [chosen && chosen !== 'auto' ? chosen : null, 'local', 'local:gemma', 'auto'];
+  return [...new Set(list.filter(Boolean))];
+}
+function ttsOrder(chosen) {
+  const list = [chosen && chosen !== 'auto' ? chosen : null, 'local', 'edge', 'auto'];
+  return [...new Set(list.filter(Boolean))];
+}
+const speechOk = new Map(); // kind -> engine that worked last (tried first next time)
+async function firstWorking(ctx, kind, order, call) {
+  const last = speechOk.get(kind);
+  if (last && order.includes(last)) order = [last, ...order.filter((e) => e !== last)];
+  let lastErr;
+  for (const e of order) {
+    try { const r = await call(eng(e)); speechOk.set(kind, e); return r; }
+    catch (err) { lastErr = err; ctx.log.warn(`${kind} via ${e} failed: ${String(err?.message || err).slice(0, 160)}`); }
+  }
+  throw lastErr || new Error(kind + ' unavailable');
+}
+
 async function askAgent(ctx, agent, mac, text) {
   const out = await ctx.host.tool('sessions_send', { sessionKey: sessionKeyOf(agent, mac), message: text, timeoutSeconds: 180 });
   const d = out?.details || {};
