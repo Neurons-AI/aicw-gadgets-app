@@ -144,21 +144,15 @@ function serveGadget(ctx, ch, via, live) {
       const verdict = await editDevices(ctx, (devs) => {
         const dev = devs[st.mac];
         if (dev?.blocked) return 'blocked';
-        if (dev?.pending || (!dev && !s.open)) {
-          // unknown gadget: list it as pending so the owner can allow it in the app
-          devs[st.mac] = { name: 'Dou mới', firstSeen: Date.now(), ...dev, mac: st.mac, pending: true, device: j.device, fw: j.fw, lastSeen: Date.now() };
-          return dev ? 'pending' : 'new';
-        }
-        devs[st.mac] = { name: 'Dou', firstSeen: Date.now(), ...dev, mac: st.mac, device: j.device, fw: j.fw, via, online: true, lastSeen: Date.now() };
+        // A gadget only knows this host's address because someone set it up with this
+        // computer's connect code: that setup is the consent, so it is accepted right away.
+        const isNew = !dev || dev.pending;
+        devs[st.mac] = { name: 'Dou ' + st.mac.slice(-4).toUpperCase(), firstSeen: Date.now(), ...dev, mac: st.mac, pending: false, device: j.device, fw: j.fw, via, online: true, lastSeen: Date.now() };
         st.name = devs[st.mac].name;
-        return 'ok';
+        return isNew ? 'new' : 'ok';
       });
       if (verdict === 'blocked') { send({ type: 'error', text: 'Thiết bị bị chặn' }); ch.close(); return; }
-      if (verdict !== 'ok') {
-        send({ type: 'error', text: 'Chờ chủ máy cho phép' });
-        if (verdict === 'new') ctx.host.notify({ title: 'Gadget mới muốn kết nối', body: 'Mở AICW Gadgets để cho phép hoặc chặn.' }).catch(() => {});
-        ch.close(); return;
-      }
+      if (verdict === 'new') ctx.host.notify({ title: 'Đã thêm gadget mới', body: `${st.name} vừa kết nối và sẵn sàng trò chuyện.` }).catch(() => {});
       st.allowed = true;
       live.set(st.mac, { via, since: Date.now() });
       send({ type: 'ready', name: st.name });
@@ -303,9 +297,9 @@ export const commands = {
     try {
       const out = await ctx.host.tool('agents_list', {});
       const list = out?.details?.agents || out?.details || [];
-      ids = (Array.isArray(list) ? list : []).map((a) => (typeof a === 'string' ? a : a.id)).filter(Boolean);
+      ids = (Array.isArray(list) ? list : []).map((a) => (typeof a === 'string' ? { id: a, name: a } : { id: a.id, name: a.name || a.identity?.name || a.id })).filter((a) => a.id);
     } catch (e) { ctx.log.warn('agents_list: ' + (e?.message || e)); }
-    if (!ids.includes('main')) ids.unshift('main');
+    if (!ids.some((a) => a.id === 'main')) ids.unshift({ id: 'main', name: 'main' });
     return { agents: ids };
   },
 
