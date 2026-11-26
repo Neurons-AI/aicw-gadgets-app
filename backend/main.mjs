@@ -134,6 +134,17 @@ async function firstWorking(ctx, kind, order, call) {
   throw lastErr || new Error(kind + ' unavailable');
 }
 
+// On a setup computer: ask the AI computer it is linked to (list or change its gadgets).
+async function askTarget(ctx, msg) {
+  const t = await targetHost(ctx);
+  if (t.self || !String(t.host).startsWith('relay:')) return null;
+  const sid = await setupIdentity(ctx);
+  const r = await askHost(sid, t.host.slice(6), { ...msg, id: sid.id }, { timeoutMs: 15000 });
+  if (r.type === 'setup_refused') throw new Error('Máy chủ AI đã ngắt kết nối với máy này. Nối lại trong Cài đặt.');
+  if (r.devices) await ctx.store.set('remoteDevices', { at: Date.now(), devices: r.devices, agents: r.agents, agent: r.agent }); // aicw:shared — cache of the AI computer's list
+  return r;
+}
+
 async function askAgent(ctx, agent, mac, text) {
   const out = await ctx.host.tool('sessions_send', { sessionKey: sessionKeyOf(agent, mac), message: text, timeoutSeconds: 180 });
   const d = out?.details || {};
@@ -209,9 +220,31 @@ function serveGadget(ctx, ch, via, live) {
   ch.onMessage(async (m) => {
     if (Buffer.isBuffer(m)) { if (st.turn != null && st.allowed) st.pcm.push(m); return; }
     let j; try { j = JSON.parse(m); } catch { return; }
+    if (j.type === 'setup_list' || j.type === 'setup_op') {
+      // A linked setup computer reads or changes this computer's gadgets. Its relay key is
+      // its identity (ch.id), so a computer that was disconnected here gets nothing.
+      const links = (await ctx.store.get('setupLinks')) || {}; // aicw:shared
+      const l = links[ch.id];
+      if (!l || l.removed) { send({ type: 'setup_refused', text: 'Máy này chưa được nối hoặc đã bị ngắt' }); ch.close(); return; }
+      let extra = {};
+      if (j.type === 'setup_op') {
+        const k = normMac(j.mac);
+        if (j.op === 'remove') await editDevices(ctx, (d) => { delete d[k]; });
+        else if (j.op === 'update') await editDevices(ctx, (d) => {
+          const cur = d[k] || { mac: k, firstSeen: Date.now() };
+          if (j.name !== undefined) cur.name = String(j.name).slice(0, 40) || 'Dou';
+          if (j.agent !== undefined) cur.agent = String(j.agent).slice(0, 64) || undefined;
+          d[k] = cur;
+        });
+        else if (j.op === 'history') extra = await commands.channelHistory({ mac: k, limit: j.limit || 40 }, ctx).catch((e) => ({ messages: [], error: e.message }));
+      }
+      const agents = await commands.agents({}, ctx).then((r) => r.agents).catch(() => []);
+      send({ type: 'setup_devices', devices: Object.values(await devices(ctx)), agents, agent: (await settings(ctx)).agent, ...extra });
+      ch.close(); return;
+    }
     if (j.type === 'setup_hello') {
       // A setup computer linking to this AI host (it pasted this computer's code).
-      const id = String(j.id || '').slice(0, 80), name = String(j.name || 'Máy tính').slice(0, 60);
+      const id = ch.id, name = String(j.name || 'Máy tính').slice(0, 60);
       const links = (await ctx.store.get('setupLinks')) || {}; // aicw:shared
       if (links[id]?.removed) { send({ type: 'setup_refused', text: 'Máy này đã bị ngắt kết nối' }); ch.close(); return; }
       links[id] = { id, name, firstAt: links[id]?.firstAt || Date.now(), lastAt: Date.now() };
@@ -443,6 +476,16 @@ export const commands = {
   },
 
   async listDevices(_a, ctx) {
+    const t = await targetHost(ctx);
+    if (!t.self) {
+      try {
+        const r = await askTarget(ctx, { type: 'setup_list' });
+        return { devices: (r.devices || []).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0)), agents: r.agents, agent: r.agent, remote: { label: t.label } };
+      } catch (e) {
+        const c = (await ctx.store.get('remoteDevices')) || {}; // aicw:shared
+        return { devices: (c.devices || []).map((d) => ({ ...d, online: false })), agents: c.agents, agent: c.agent, remote: { label: t.label, offline: true, error: e.message } };
+      }
+    }
     const d = await devices(ctx);
     return { devices: Object.values(d).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0)) };
   },
@@ -450,6 +493,7 @@ export const commands = {
   async updateDevice({ mac, name, agent, blocked, pending, voice, language }, ctx) {
     ownerOnly(ctx);
     const k = normMac(mac);
+    if (!(await targetHost(ctx)).self) { await askTarget(ctx, { type: 'setup_op', op: 'update', mac: k, name, agent }); return { ok: true }; }
     const patch = {};
     if (name !== undefined) patch.name = String(name).slice(0, 40) || 'Dou';
     if (agent !== undefined) patch.agent = String(agent).slice(0, 64) || undefined;
@@ -467,6 +511,7 @@ export const commands = {
   async removeDevice({ mac }, ctx) {
     ownerOnly(ctx);
     const k = normMac(mac);
+    if (!(await targetHost(ctx)).self) { await askTarget(ctx, { type: 'setup_op', op: 'remove', mac: k }); return { removed: k }; }
     return editDevices(ctx, (d) => { delete d[k]; return { removed: k }; });
   },
 
@@ -482,6 +527,10 @@ export const commands = {
   },
 
   async channelHistory({ mac, limit = 30 }, ctx) {
+    if (!(await targetHost(ctx)).self) {
+      const r = await askTarget(ctx, { type: 'setup_op', op: 'history', mac: normMac(mac), limit });
+      return { sessionKey: r.sessionKey || '', messages: r.messages || [] };
+    }
     const d = await devices(ctx), dev = d[normMac(mac)];
     const s = await settings(ctx);
     const key = sessionKeyOf(dev?.agent || s.agent, mac);

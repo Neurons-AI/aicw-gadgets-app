@@ -165,6 +165,7 @@
 
   <!-- My gadgets -->
   <section data-pane="home">
+    <div id="remoteNote" class="small muted" hidden style="margin-bottom:12px"></div>
     <div id="askList"></div>
     <div id="emptyHome" class="empty" hidden>
       <svg viewBox="0 0 200 210" class="douArt"></svg>
@@ -386,15 +387,22 @@ document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => show
 // ---------- my gadgets ----------
 const agentName = (id) => (S.agents.find((a) => a.id === id) || {}).name || id;
 async function loadDevices() {
-  const { devices } = await aicw.call('listDevices', {});
-  S.devices = devices;
+  const r = await aicw.call('listDevices', {});
+  const devices = r.devices || [];
+  S.devices = devices; S.remote = r.remote || null;
+  if (r.agents && r.agents.length) S.agents = r.agents.map((a) => (typeof a === 'string' ? { id: a, name: a } : a)).filter((a) => !/^(member-|aiapp-|okdb-live-|cskh-rehearsal$)/.test(a.id));
+  if (r.agent) S.remoteAgent = r.agent;
+  $('#remoteNote').hidden = !S.remote;
+  if (S.remote) $('#remoteNote').innerHTML = S.remote.offline
+    ? T(`⚠ Cannot reach <b>${esc(S.remote.label || 'the AI computer')}</b> right now. Showing the last list.|⚠ Chưa liên lạc được với <b>${esc(S.remote.label || 'máy chủ AI')}</b>. Đang hiện danh sách lần trước.`)
+    : T(`These gadgets live on <b>${esc(S.remote.label || 'the AI computer')}</b>. Changes here show up there too.|Các gadget này thuộc máy chủ AI <b>${esc(S.remote.label || '')}</b>. Sửa hay gỡ ở đây cũng đổi bên đó.`);
   const mine = devices.filter((d) => !d.pending && !d.blocked);
   const asks = devices.filter((d) => d.pending);
   $('#askList').innerHTML = asks.map((d) => `<div class="notice"><svg viewBox="0 0 200 210" style="width:34px;height:34px">${dou()}</svg><div class="grow"><b>${T('A new gadget wants to talk to your assistant|Một gadget lạ muốn trò chuyện với trợ lý')}</b><div class="small muted">${esc(d.name || 'Dou')} · ${esc(d.mac)}</div></div><button class="btn primary" data-allow="${esc(d.mac)}">${T('Allow|Cho phép')}</button><button class="btn" data-deny="${esc(d.mac)}">${T('Block|Chặn')}</button></div>`).join('');
   $('#askList').querySelectorAll('[data-allow]').forEach((b) => (b.onclick = () => aicw.call('updateDevice', { mac: b.dataset.allow, pending: false, blocked: false }).then(loadDevices)));
   $('#askList').querySelectorAll('[data-deny]').forEach((b) => (b.onclick = () => aicw.call('updateDevice', { mac: b.dataset.deny, pending: false, blocked: true }).then(loadDevices)));
   $('#emptyHome').hidden = mine.length > 0; $('#homeList').hidden = mine.length === 0;
-  const def = S.status?.settings?.agent || 'main';
+  const def = (S.remote ? S.remoteAgent : null) || S.status?.settings?.agent || 'main';
   $('#grid').innerHTML = mine.map((d) => {
     const on = !!d.online;
     return `<div class="g"><div class="who"><svg viewBox="0 0 200 210">${dou(on ? '#ffe9a8' : '#8b8799', !on)}</svg><div><div class="name">${esc(d.name || 'Dou')}</div>
@@ -523,7 +531,7 @@ async function startSetup() {
     $('#dName').value = 'Dou ' + mac.slice(-4).toUpperCase();
     $('#dAgent').innerHTML = S.agents.map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
     $('#dAgent').value = S.status?.settings?.agent || 'main';
-    $('#dName').parentElement.parentElement.hidden = !r.self;
+
     step('done');
   } catch (e) {
     W.job = null;
