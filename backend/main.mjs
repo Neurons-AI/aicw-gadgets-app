@@ -102,8 +102,18 @@ function serveGadget(ctx, ch, via, live) {
         if (!pcm.length || pcm.length < RATE * 2 * 0.3) { send({ type: 'error', id, text: 'Nói ngắn quá' }); return; }
         const f = await ctx.files.put({ name: `turn-${st.mac}-${id}.wav`, data: pcmToWav(pcm), mime: 'audio/wav' });
         try {
-          const r = await ctx.host.stt({ file: f.id, language: dev.language || s.language, engine: s.sttEngine || 'auto' });
-          text = String(r?.text || '').trim();
+          const lang = dev.language || s.language;
+          const eng = s.sttEngine || 'auto';
+          let r;
+          try { r = await ctx.host.stt({ file: f.id, language: lang, engine: eng }); }
+          catch (e) {
+            // The chosen engine may not exist on this computer (settings come from another
+            // machine, a model pack not downloaded yet): fall back to whatever works here.
+            ctx.log.warn(`stt (${eng}) failed: ${e?.message || e}`);
+            if (eng === 'auto') throw e;
+            r = await ctx.host.stt({ file: f.id, language: lang });
+          }
+          text = String(r?.text || '').trim().replace(/^Transcription:\s*/i, '').replace(/^"(.*)"$/s, '$1');
         } finally { ctx.files.remove(f.id).catch(() => {}); }
         if (st.turn !== id) return;
         send({ type: 'heard', id, text, final: true });
@@ -114,7 +124,14 @@ function serveGadget(ctx, ch, via, live) {
       const say = speakable(reply);
       send({ type: 'reply', id, text: say || reply });
       if (say && pcm !== undefined) {
-        const tts = await ctx.host.tts({ text: say, engine: s.ttsEngine || 'auto', ...(dev.voice || s.voice ? { voice: dev.voice || s.voice } : {}) });
+        const voice = dev.voice || s.voice ? { voice: dev.voice || s.voice } : {};
+        let tts;
+        try { tts = await ctx.host.tts({ text: say, engine: s.ttsEngine || 'auto', ...voice }); }
+        catch (e) {
+          ctx.log.warn(`tts (${s.ttsEngine || 'auto'}) failed: ${e?.message || e}`);
+          if ((s.ttsEngine || 'auto') === 'auto') throw e;
+          tts = await ctx.host.tts({ text: say });
+        }
         const wav = await import('node:fs').then((fs) => ctx.files.path(tts.file.id).then((p) => fs.promises.readFile(p)));
         ctx.files.remove(tts.file.id).catch(() => {});
         const out = wavToPcm16(wav, RATE);
@@ -128,10 +145,13 @@ function serveGadget(ctx, ch, via, live) {
         send({ type: 'audio_end', id });
       }
       send({ type: 'done', id });
-      await editDevices(ctx, (all) => { if (all[st.mac]) all[st.mac] = { ...all[st.mac], lastTurnAt: Date.now(), lastTurnMs: Date.now() - t0, lastHeard: text?.slice(0, 120) }; });
+      await editDevices(ctx, (all) => { if (all[st.mac]) all[st.mac] = { ...all[st.mac], lastTurnAt: Date.now(), lastTurnMs: Date.now() - t0, lastHeard: text?.slice(0, 120), lastError: null }; });
     } catch (e) {
-      ctx.log.warn(`turn ${id} failed: ${e?.message || e}`);
+      const why = String(e?.message || e);
+      ctx.log.warn(`turn ${id} failed: ${why}`);
       send({ type: 'error', id, text: friendly(e) });
+      // Keep the real reason so the app can show it on the gadget's card.
+      await editDevices(ctx, (all) => { if (all[st.mac]) all[st.mac] = { ...all[st.mac], lastError: { at: Date.now(), text: friendly(e), detail: why.slice(0, 300) } }; }).catch(() => {});
     }
   }
 
@@ -175,8 +195,10 @@ function serveGadget(ctx, ch, via, live) {
 
 function friendly(e) {
   const m = String(e?.message || e);
-  if (/timeout|quá lâu/i.test(m)) return 'Agent trả lời quá lâu';
-  if (/stt|speech|audio/i.test(m)) return 'Không nghe được';
+  if (/timeout|quá lâu/i.test(m)) return 'Trợ lý trả lời quá lâu';
+  if (/no (speech|stt)|not (available|configured)|provider|model_pack|missing/i.test(m)) return 'Máy chủ chưa có bộ nghe giọng nói';
+  if (/stt|speech|transcri/i.test(m)) return 'Không nghe được: ' + m.slice(0, 40);
+  if (/tts/i.test(m)) return 'Không đọc được câu trả lời';
   return m.slice(0, 60);
 }
 
