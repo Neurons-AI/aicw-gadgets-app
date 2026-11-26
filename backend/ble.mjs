@@ -49,14 +49,27 @@ export async function scan(ms = 6000) {
 // password, wrong name), retry({ reason, networks, ssidSeen }) is awaited for new
 // { ssid, password } on the SAME session (no second button press); return null to stop.
 // Resolves with { device, networks } when the gadget says auth_ok.
+let active = null; // the one setup that owns the Bluetooth link
+
 export async function setup(id, { ssid, password, host }, onStep = () => {}, retry = async () => null) {
   if (!host) throw new Error('Host is required');
+  // Only one setup at a time: a newer attempt (page reopened, Try again) replaces an older one
+  // that may still hold the gadget's Bluetooth link.
+  if (active) { active.abort(); await new Promise((r) => setTimeout(r, 800)); }
+  const me = { aborted: false, p: null, abort() { this.aborted = true; this.p?.disconnectAsync().catch(() => {}); } };
+  active = me;
+  try { return await setupOnce(me, id, { ssid, password, host }, onStep, retry); }
+  finally { if (active === me) active = null; }
+}
+
+async function setupOnce(me, id, { ssid, password, host }, onStep, retry) {
   const noble = await getNoble();
   let p = found.get(id);
   if (!p) { await scan(5000); p = found.get(id); }
   if (!p) throw new Error('Gadget not found over Bluetooth. Is it close by and not set up yet?');
 
-  const step = (s, extra) => onStep({ step: s, text: STATUS_TEXT[s] || s, ...extra });
+  me.p = p;
+  const step = (s, extra) => { if (!me.aborted) onStep({ step: s, text: STATUS_TEXT[s] || s, ...extra }); };
   step('connecting', { text: 'Đang kết nối Bluetooth…' });
   // A link left over from an earlier attempt (cancelled, page closed) blocks a new one.
   if (p.state === 'connected' || p.state === 'connecting') { await p.disconnectAsync().catch(() => {}); await new Promise((r) => setTimeout(r, 600)); }
@@ -84,6 +97,7 @@ export async function setup(id, { ssid, password, host }, onStep = () => {}, ret
     const next = async (ms) => {
       const until = Date.now() + ms;
       while (!inbox.length) {
+        if (me.aborted) throw new Error('Cancelled');
         if (done.closed) throw new Error('Gadget dropped the Bluetooth link');
         const left = until - Date.now();
         if (left <= 0) throw new Error('Gadget did not answer in time');

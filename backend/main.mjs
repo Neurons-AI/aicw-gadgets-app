@@ -287,6 +287,8 @@ export const commands = {
     const t = await targetHost(ctx);
     const host = a.code ? parseConnectCode(a.code) : t.host;
     const jobId = ctx.job?.id || crypto.randomUUID();
+    // A setup still waiting for an answer from an older page is over: let it end.
+    for (const [k, res] of bleAnswers) { if (k !== jobId) { res(null); bleAnswers.delete(k); } }
     const steps = [];
     const r = await ble.setup(a.id, { ssid: a.ssid, password: a.password, host }, (st) => {
       steps.push(st.step);
