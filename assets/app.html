@@ -168,6 +168,7 @@
   dialog { border: 1px solid var(--ui-border); border-radius: 18px; padding: 22px; background: var(--ui-surface); color: var(--ui-fg); max-width: min(440px, 92vw); }
   dialog::backdrop { background: rgba(0,0,0,.35); }
   dialog h3 { margin: 0 0 6px; }
+  .masked{-webkit-text-security:disc;text-security:disc}
 </style>
 </head>
 <body>
@@ -439,7 +440,7 @@
       <div class="nets" id="nets"></div>
       <div class="fields">
         <label id="ssidField"><span data-t="Wi-Fi name|Tên Wi-Fi"></span><input class="ui-input" id="wSsid" maxlength="32" autocomplete="off"></label>
-        <label><span data-t="Password|Mật khẩu"></span><input class="ui-input" id="wPass" type="password" maxlength="64" autocomplete="off"></label>
+        <label><span data-t="Password|Mật khẩu"></span><span style="display:flex;gap:6px;align-items:center"><input class="ui-input masked" id="wPass" type="text" maxlength="64" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1"><button type="button" class="btn ghost sm" id="wPassEye" aria-label="Show" style="padding:6px 10px">👁</button></span></label>
       </div>
       <div class="err" id="wErr"></div>
       <div class="actions"><button class="btn primary big" id="bConnect" data-t="Connect|Kết nối"></button></div>
@@ -899,6 +900,8 @@ aicw.on('visible', refresh);
 setInterval(() => { if (aicw.visible !== false && $('#wiz').hidden) refresh(); }, 15000);
 } catch (e) { console.error('page start', e); document.body.insertAdjacentHTML('beforeend', '<pre style="color:#c00;padding:16px">' + String(e && e.stack || e) + '</pre>'); }
 })();
+
+document.getElementById('wPassEye')?.addEventListener('click', () => document.getElementById('wPass').classList.toggle('masked'));
 </script>
 </body>
 </html>
