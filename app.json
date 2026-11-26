@@ -3,7 +3,7 @@
   "name": "AICW Gadgets",
   "iconImage": "assets/icon.png",
   "icon": "📟",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Flash, set up and talk to AICW voice gadgets (Dou on an M5Stack StickS3 and other ESP32 boards) from your own AICoworker.",
   "window": {
     "entry": "assets/app.html",
@@ -371,6 +371,103 @@
           "properties": {}
         },
         "consumer": false
+      },
+      "connectCode": {
+        "description": "This computer's connect code (give it to the setup machine) and where gadgets set up here are sent.",
+        "args": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      "setTarget": {
+        "description": "Send gadgets set up here to another computer (paste its connect code), or back to this one (empty).",
+        "mutating": true,
+        "consumer": false,
+        "args": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "maxLength": 300
+            },
+            "label": {
+              "type": "string",
+              "maxLength": 60
+            }
+          }
+        }
+      },
+      "bleScan": {
+        "description": "Find gadgets waiting for setup over Bluetooth.",
+        "consumer": false,
+        "args": {
+          "type": "object",
+          "properties": {
+            "seconds": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 20
+            }
+          }
+        }
+      },
+      "bleSetup": {
+        "description": "Pair a gadget over Bluetooth (the person presses its button) and give it Wi-Fi and the host.",
+        "job": true,
+        "mutating": true,
+        "consumer": false,
+        "args": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "ssid": {
+              "type": "string",
+              "maxLength": 32
+            },
+            "password": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "code": {
+              "type": "string",
+              "maxLength": 300
+            }
+          }
+        }
+      },
+      "bleAnswer": {
+        "description": "Answer a running Bluetooth setup that asks for the Wi-Fi again.",
+        "mutating": true,
+        "consumer": false,
+        "args": {
+          "type": "object",
+          "required": [
+            "job"
+          ],
+          "properties": {
+            "job": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "ssid": {
+              "type": "string",
+              "maxLength": 32
+            },
+            "password": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "cancel": {
+              "type": "boolean"
+            }
+          }
+        }
       }
     }
   },

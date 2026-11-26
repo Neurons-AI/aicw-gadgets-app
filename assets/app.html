@@ -77,6 +77,19 @@
   .step.active i { background: var(--ui-accent); color: var(--ui-accent-fg, #fff); border-color: var(--ui-accent); }
   .step.done i { background: var(--ui-good); color: #fff; border-color: var(--ui-good); }
   @media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
+  .seg { display: inline-flex; border: 1px solid var(--ui-border); border-radius: 12px; padding: 3px; gap: 3px; margin-bottom: 14px; flex-wrap: wrap; }
+  .seg button { appearance: none; border: 0; background: none; color: var(--ui-muted-fg); font: inherit; font-size: 13.5px; padding: 7px 14px; border-radius: 9px; cursor: pointer; }
+  .seg button.on { background: var(--ui-accent); color: var(--ui-accent-fg, #fff); }
+  .gl { display: grid; gap: 8px; margin-top: 10px; }
+  .gl button { display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; appearance: none; border: 1px solid var(--ui-border); background: var(--ui-bg); color: inherit; font: inherit; padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+  .gl button.on { border-color: var(--ui-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-accent) 25%, transparent); }
+  .prog { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+  .prog li { display: flex; gap: 8px; align-items: center; color: var(--ui-muted-fg); }
+  .prog li.done { color: var(--ui-fg); }
+  .prog li.bad { color: var(--ui-bad); }
+  .prog li::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ui-border); flex: none; }
+  .prog li.done::before { background: var(--ui-good); } .prog li.bad::before { background: var(--ui-bad); }
+  .press { padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--ui-accent) 12%, transparent); font-weight: 600; margin-top: 12px; }
   .bar { height: 6px; border-radius: 999px; background: var(--ui-surface-2, var(--ui-border)); overflow: hidden; margin-top: 12px; }
   .bar span { display: block; height: 100%; width: 0; background: var(--ui-accent); transition: width .3s; }
 
@@ -125,7 +138,8 @@
         <button class="ui-btn ghost sm" id="bStop" data-t="Turn off|Tắt"></button></div>
       <p class="lead" data-t="Every gadget you set up talks to the agent on this computer. Keep AICoworker running.|Mọi gadget bạn cài sẽ nói chuyện với agent trên máy này. Hãy để AICoworker luôn chạy."></p>
       <div class="route"><span class="dot" id="dRelay"></span><b data-t="From anywhere · AICW relay|Từ mọi nơi · relay AICW"></b><span class="muted" id="tRelay"></span>
-        <div class="addr row"><span class="mono grow" id="hostId"></span><button class="copy" id="cpHost" data-t="Copy|Sao chép"></button></div></div>
+        <div class="addr"><div class="muted" data-t="Connect code: paste it in AICW Gadgets on the computer you set gadgets up with.|Mã kết nối: dán vào AICW Gadgets trên máy dùng để cài gadget."></div>
+          <div class="row"><span class="mono grow" id="hostId"></span><button class="copy" id="cpHost" data-t="Copy code|Sao chép mã"></button></div></div></div>
       <div class="route"><span class="dot" id="dLan"></span><b data-t="Same Wi-Fi · faster|Cùng Wi-Fi · nhanh hơn"></b><span class="muted" id="tLanState"></span>
         <div class="addr mono" id="tLan"></div></div>
     </div>
@@ -168,6 +182,37 @@
 
   <!-- Install -->
   <section data-pane="install" hidden>
+    <div class="card" id="targetCard">
+      <div class="row"><h3 class="grow" data-t="Gadgets set up here talk to|Gadget cài ở đây sẽ nói chuyện với"></h3><span class="ui-badge" id="tgtBadge"></span></div>
+      <p class="lead" id="tgtLine"></p>
+      <div class="row"><input class="ui-input grow" id="tgtCode" maxlength="300" data-tp="Paste the host computer's connect code|Dán mã kết nối của máy chủ" style="min-width:220px">
+        <button class="ui-btn sm" id="bTgt" data-t="Use this host|Dùng máy chủ này"></button>
+        <button class="ui-btn ghost sm" id="bTgtSelf" data-t="Use this computer|Dùng máy này"></button></div>
+    </div>
+    <div class="seg" id="modeSeg">
+      <button data-mode="ble" class="on" data-t="Bluetooth · already has AICW firmware|Bluetooth · đã có firmware AICW"></button>
+      <button data-mode="usb" data-t="USB · new board, flash firmware|USB · bo mới, nạp firmware"></button>
+    </div>
+    <div id="modeBle">
+      <div class="card">
+        <div class="row"><h3 class="grow" data-t="Gadgets waiting for setup|Gadget đang chờ cài đặt"></h3><button class="ui-btn sm" id="bBleScan" data-t="Search|Tìm"></button></div>
+        <p class="lead" data-t="Turn the gadget on and keep it close. A gadget that was set up before must be reset first (hold its button).|Bật gadget và để gần máy. Gadget đã cài trước đó phải đặt lại trước (giữ nút)."></p>
+        <div class="gl" id="bleList"><p class="muted" data-t="Press Search.|Bấm Tìm."></p></div>
+      </div>
+      <div class="card" id="bleWifi" hidden>
+        <h3 data-t="Wi-Fi for the gadget|Wi-Fi cho gadget"></h3>
+        <p class="lead" data-t="Sent over an encrypted Bluetooth link, never saved on this computer. The gadget needs 2.4 GHz Wi-Fi.|Gửi qua Bluetooth đã mã hoá, không lưu trên máy này. Gadget cần Wi-Fi 2.4 GHz."></p>
+        <div class="form">
+          <label class="field"><span data-t="Wi-Fi name|Tên Wi-Fi"></span><input class="ui-input" id="bSsid" maxlength="32" autocomplete="off" list="bNets"><datalist id="bNets"></datalist></label>
+          <label class="field"><span data-t="Wi-Fi password|Mật khẩu Wi-Fi"></span><input class="ui-input" id="bPass" type="text" style="-webkit-text-security:disc" maxlength="64" autocomplete="off"></label>
+        </div>
+        <div class="row" style="margin-top:14px"><button class="ui-btn primary" id="bBleGo" data-t="Pair and set up|Ghép đôi và cài đặt"></button><button class="ui-btn ghost sm" id="bBleCancel" hidden data-t="Stop|Dừng"></button></div>
+        <div class="press" id="blePress" hidden data-t="Press the button on the gadget now to confirm.|Bấm nút trên gadget ngay bây giờ để xác nhận."></div>
+        <ul class="prog" id="bleProg"></ul>
+        <p class="muted" id="bleOut" style="margin:10px 0 0"></p>
+      </div>
+    </div>
+    <div id="modeUsb" hidden>
     <div class="steps">
       <div class="step active" id="s1"><i>1</i><span data-t="Plug in USB|Cắm USB"></span></div>
       <div class="step" id="s2"><i>2</i><span data-t="Flash firmware|Nạp firmware"></span></div>
@@ -201,6 +246,7 @@
       <p class="muted" id="setupOut" style="margin:10px 0 0"></p>
       <pre class="log" id="logOut" hidden></pre>
     </div>
+  </div>
   </section>
 
   <!-- Settings -->
@@ -258,7 +304,7 @@ function show(v) {
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
   aicw.setState({ ...(aicw.getState() || {}), view: v });
   if (v === 'channels') loadChat();
-  if (v === 'install' && !S.ports.length) scan();
+  if (v === 'install') { loadTarget().catch(fail('target')); setMode((aicw.getState() || {}).mode || 'ble'); }
 }
 document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => show(b.dataset.view)));
 document.querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => show(b.dataset.go)));
@@ -272,7 +318,7 @@ async function loadStatus() {
   $('#pText').textContent = on ? T('Bridge on|Cầu nối đang bật') : off ? T('Bridge off|Cầu nối đã tắt') : T('Starting…|Đang khởi động…');
   $('#kBridge').textContent = on ? T('On|Đang bật') : off ? T('Off|Đã tắt') : T('Starting|Đang khởi động');
   $('#kBridgeSub').textContent = on ? (vi() ? 'Bật từ ' : 'Since ') + ago(b.startedAt) : '';
-  $('#hostId').textContent = 'relay:' + st.hostId;
+  $('#hostId').textContent = 'aicw-gadget:relay:' + st.hostId;
   const rel = st.settings.relay ? (b.relay || '…') : 'off', lan = st.settings.lan ? (b.lan || '…') : 'off';
   $('#dRelay').className = 'dot ' + (rel === 'up' ? 'ok' : rel === 'off' ? '' : 'warn');
   $('#tRelay').textContent = rel === 'up' ? T('ready|sẵn sàng') : rel === 'off' ? T('off|đang tắt') : T('connecting|đang kết nối');
@@ -413,6 +459,103 @@ $('#bSetup').onclick = async () => {
 };
 $('#bStatus').onclick = () => aicw.call('gadgetStatus', { port: $('#port').value }).then((r) => { $('#setupOut').innerHTML = r.gadget ? `Wi-Fi: <b>${r.gadget.wifi ? T('connected|đã nối') : T('not yet|chưa nối')}</b> · <b>${esc(r.gadget.detail || r.gadget.state)}</b><br><span class="mono">${esc(r.gadget.host)}</span>` : T('This board does not run AICW Gadgets yet, or is still starting.|Bo mạch chưa chạy AICW Gadgets, hoặc đang khởi động.'); }).catch(fail('status'));
 $('#bLog').onclick = () => { $('#logOut').hidden = false; $('#logOut').textContent = T('Reading for 6 seconds…|Đang đọc 6 giây…'); aicw.call('gadgetLog', { port: $('#port').value, seconds: 6 }).then((r) => ($('#logOut').textContent = r.text || T('(nothing)|(không có gì)'))).catch(fail('log')); };
+
+// ---------- add a gadget: target host, Bluetooth, USB ----------
+async function loadTarget() {
+  const r = await aicw.call('connectCode', {});
+  S.target = r.target;
+  const self = !!r.target.self;
+  $('#tgtBadge').className = 'ui-badge ' + (self ? 'good' : 'info');
+  $('#tgtBadge').textContent = self ? T('This computer|Máy này') : T('Another computer|Máy khác');
+  $('#tgtLine').innerHTML = self
+    ? T('This computer runs the bridge and the agent. To send gadgets to another computer (for example the one that runs your agent), paste its connect code.|Máy này chạy cầu nối và agent. Muốn gadget nói chuyện với máy khác (vd máy đang chạy agent), dán mã kết nối của máy đó.')
+    : `${T('Host|Máy chủ')}: <b>${esc(r.target.label || '')}</b> <span class="mono">${esc(r.target.host)}</span>`;
+  $('#bTgtSelf').hidden = self;
+}
+$('#bTgt').onclick = () => aicw.call('setTarget', { code: $('#tgtCode').value }).then(() => { $('#tgtCode').value = ''; toast(T('Saved|Đã lưu'), 'good'); loadTarget(); }).catch(fail('target'));
+$('#bTgtSelf').onclick = () => aicw.call('setTarget', {}).then(loadTarget).catch(fail('target'));
+
+function setMode(m) {
+  $('#modeBle').hidden = m !== 'ble'; $('#modeUsb').hidden = m !== 'usb';
+  document.querySelectorAll('#modeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
+  aicw.setState({ ...(aicw.getState() || {}), mode: m });
+  if (m === 'usb' && !S.ports.length) scan();
+}
+document.querySelectorAll('#modeSeg button').forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
+
+S.ble = { pick: null, job: null };
+async function bleScan() {
+  $('#bBleScan').disabled = true;
+  $('#bleList').innerHTML = `<p class="muted">${T('Searching for 6 seconds…|Đang tìm trong 6 giây…')}</p>`;
+  try {
+    const { gadgets } = await aicw.call('bleScan', { seconds: 6 });
+    if (!gadgets.length) { $('#bleList').innerHTML = `<p class="muted">${T('No gadget is waiting. Turn it on, keep it close; a gadget set up before must be reset first.|Không thấy gadget nào đang chờ. Bật gadget, để gần máy; gadget đã cài trước đó phải đặt lại trước.')}</p>`; return; }
+    $('#bleList').innerHTML = gadgets.map((g) => `<button data-id="${esc(g.id)}"><span><b>${esc(g.name)}</b></span><span class="muted">${g.rssi > -60 ? T('close|ở gần') : g.rssi > -80 ? T('in range|trong tầm') : T('far|ở xa')} · ${g.rssi} dBm</span></button>`).join('');
+    $('#bleList').querySelectorAll('button').forEach((b) => (b.onclick = () => {
+      S.ble.pick = b.dataset.id;
+      $('#bleList').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+      $('#bleWifi').hidden = false; $('#bSsid').focus();
+    }));
+    if (gadgets.length === 1) $('#bleList button').click();
+  } catch (e) { $('#bleList').innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
+  finally { $('#bBleScan').disabled = false; }
+}
+$('#bBleScan').onclick = bleScan;
+
+const BLE_STEPS = ['connecting', 'pairing_confirm_required', 'pairing_confirmed', 'wifi_connecting', 'wifi_connected', 'auth_ok'];
+function bleLine(step, text, tone) {
+  let li = $('#bleProg').querySelector(`[data-s="${step}"]`);
+  if (!li) { li = document.createElement('li'); li.dataset.s = step; $('#bleProg').appendChild(li); }
+  li.textContent = text; li.className = tone || 'done';
+}
+$('#bBleGo').onclick = async () => {
+  if (!S.ble.pick) { toast(T('Pick a gadget first|Chọn gadget trước'), 'warn'); return; }
+  if (!$('#bSsid').value.trim()) { toast(T('Enter the Wi-Fi name|Nhập tên Wi-Fi'), 'warn'); $('#bSsid').focus(); return; }
+  $('#bleProg').innerHTML = ''; $('#bleOut').textContent = '';
+  $('#bBleGo').disabled = true; $('#bBleCancel').hidden = false;
+  const args = { id: S.ble.pick, ssid: $('#bSsid').value.trim(), password: $('#bPass').value };
+  $('#bPass').value = '';
+  try {
+    const job = await aicw.jobs.start('bleSetup', args, { onProgress: (j) => {
+      let p = {}; try { p = JSON.parse(j.note || '{}'); } catch { return; }
+      $('#blePress').hidden = p.step !== 'pairing_confirm_required';
+      if (p.networks && p.networks.length) $('#bNets').innerHTML = p.networks.map((n) => `<option value="${esc(n.ssid)}">`).join('');
+      if (p.step === 'need_wifi') {
+        bleLine('wifi_connecting', p.reason === 'wrong_password'
+          ? T(`Could not join "${p.ssid}": the password looks wrong. Type it again and press Try again.|Không vào được "${p.ssid}": có vẻ sai mật khẩu. Gõ lại rồi bấm Thử lại.`)
+          : T(`The gadget cannot see "${p.ssid}". Check the name (2.4 GHz only) and press Try again.|Gadget không thấy mạng "${p.ssid}". Kiểm tra tên Wi-Fi (chỉ 2.4 GHz) rồi bấm Thử lại.`), 'bad');
+        $('#bBleGo').disabled = false; $('#bBleGo').textContent = T('Try again|Thử lại'); $('#bBleGo').dataset.retry = '1';
+        (p.reason === 'wrong_password' ? $('#bPass') : $('#bSsid')).focus();
+        return;
+      }
+      if (p.step === 'wifi_scan' || p.step === 'confirm_required') return;
+      bleLine(p.step, p.text);
+    } });
+    S.ble.job = job.id;
+    const r = await job.done;
+    $('#blePress').hidden = true;
+    $('#bleOut').innerHTML = `<b>${T('Done.|Xong.')}</b> ${r.self ? T('The gadget restarts and connects to this computer in a few seconds. Press its button and talk.|Gadget khởi động lại và kết nối về máy này sau vài giây. Bấm nút và nói thử.') : T('The gadget restarts and connects to the host. Allow it there in AICW Gadgets if asked.|Gadget khởi động lại và kết nối về máy chủ. Nếu được hỏi, cho phép nó trong AICW Gadgets trên máy chủ.')}`;
+    S.ble.pick = null; refresh(); setTimeout(refresh, 15000);
+  } catch (e) {
+    $('#blePress').hidden = true;
+    $('#bleOut').textContent = T('Setup stopped|Cài đặt dừng') + ': ' + e.message;
+  } finally {
+    S.ble.job = null; $('#bBleGo').disabled = false; $('#bBleCancel').hidden = true;
+    $('#bBleGo').textContent = T('Pair and set up|Ghép đôi và cài đặt'); delete $('#bBleGo').dataset.retry;
+  }
+};
+// While a setup waits for the Wi-Fi again, the same button answers it (no second button press on the gadget).
+const goSetup = $('#bBleGo').onclick;
+$('#bBleGo').onclick = () => {
+  if ($('#bBleGo').dataset.retry && S.ble.job) {
+    const a = { job: S.ble.job, ssid: $('#bSsid').value.trim(), password: $('#bPass').value };
+    $('#bPass').value = ''; $('#bBleGo').disabled = true; delete $('#bBleGo').dataset.retry;
+    $('#bBleGo').textContent = T('Pair and set up|Ghép đôi và cài đặt');
+    return aicw.call('bleAnswer', a).catch(fail('answer'));
+  }
+  return goSetup();
+};
+$('#bBleCancel').onclick = () => (S.ble.job ? aicw.call('bleAnswer', { job: S.ble.job, cancel: true }).catch(() => {}) : null);
 
 // ---------- conversations ----------
 function fillGadgetSelect() {

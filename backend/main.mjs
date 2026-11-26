@@ -10,6 +10,7 @@ import http from 'node:http';
 import { identity, runHost, makeChannel } from './relay.mjs';
 import { RATE, pcmToWav, wavToPcm16, speakable } from './audio.mjs';
 import { CATALOG, boardsForUsb, latestRelease, imagesFor } from './firmware.mjs';
+import * as ble from './ble.mjs';
 
 const serial = () => import('./serial.mjs'); // native module: loaded only by the USB commands
 
@@ -54,6 +55,28 @@ async function hostIdentity(ctx) {
   if (!seed) { seed = crypto.randomBytes(32).toString('hex'); await ctx.store.set('relaySeed', seed); } // aicw:shared
   return identity(Buffer.from(seed, 'hex'));
 }
+
+// ---------- the connect code: which host a gadget talks to ----------
+// A host machine (bridge + agent) shows "aicw-gadget:relay:<hostId>". Any setup machine
+// pastes it; the part after "aicw-gadget:" is what the gadget stores as aicw_host.
+const CODE_PREFIX = 'aicw-gadget:';
+function parseConnectCode(code) {
+  let c = String(code || '').trim();
+  const m = c.match(/aicw-gadget:(\S+)/i); if (m) c = m[1];
+  const u = c.match(/agent\.aicoworker\.net\/[gs]\/([a-z0-9]{40,64})/i); if (u) c = 'relay:' + u[1].toLowerCase();
+  if (/^[a-z2-7]{52}$/i.test(c)) c = 'relay:' + c.toLowerCase();
+  if (/^relay:[a-z2-7]{52}$/i.test(c)) return c.toLowerCase();
+  if (/^(\d{1,3}\.){3}\d{1,3}(:\d{2,5})?$/.test(c)) return c;
+  if (/^[a-z0-9.-]{1,63}(:\d{2,5})?$/i.test(c) && c.includes('.')) return c;
+  throw new Error('Mã kết nối không đúng. Mở AICW Gadgets trên máy chủ, mục Tổng quan, bấm Sao chép mã.');
+}
+async function targetHost(ctx) {
+  const t = await ctx.store.get('targetHost'); // aicw:shared — host this setup machine sends gadgets to
+  if (t && t.host) return t;
+  const idn = await hostIdentity(ctx);
+  return { host: 'relay:' + idn.id, self: true };
+}
+const bleAnswers = new Map(); // jobId -> resolve
 
 async function askAgent(ctx, agent, mac, text) {
   const out = await ctx.host.tool('sessions_send', { sessionKey: sessionKeyOf(agent, mac), message: text, timeoutSeconds: 180 });
@@ -218,6 +241,60 @@ export const commands = {
     const skip = (n, a) => /^(utun|tun|tap|bridge|vmnet|vbox|docker|veth|llw|awdl|zt|tailscale|wg)/i.test(n) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(a) || /^169\.254\./.test(a);
     const ips = Object.entries(os.networkInterfaces()).flatMap(([n, l]) => (l || []).filter((i) => i.family === 'IPv4' && !i.internal && !skip(n, i.address)).map((i) => i.address));
     return { hostId: idn.id, settings: s, bridge: { ...(b || {}), running: !!running }, lanAddresses: ips };
+  },
+
+  // ---------- roles: this machine as host, or a setup machine for another host ----------
+  async connectCode(_a, ctx) {
+    const idn = await hostIdentity(ctx);
+    const t = await targetHost(ctx);
+    return { code: CODE_PREFIX + 'relay:' + idn.id, target: t };
+  },
+  async setTarget(a, ctx) {
+    ownerOnly(ctx);
+    if (!a.code) { await ctx.store.delete('targetHost'); return { target: await targetHost(ctx) }; } // aicw:shared
+    const host = parseConnectCode(a.code);
+    const idn = await hostIdentity(ctx);
+    const self = host === 'relay:' + idn.id;
+    const t = self ? null : { host, label: String(a.label || '').slice(0, 60), at: Date.now() };
+    if (t) await ctx.store.set('targetHost', t); else await ctx.store.delete('targetHost'); // aicw:shared
+    return { target: await targetHost(ctx) };
+  },
+
+  // ---------- Bluetooth setup (gadget already has AICW firmware) ----------
+  async bleScan(a, ctx) {
+    ownerOnly(ctx);
+    const list = await ble.scan(Math.min(Math.max(Number(a.seconds) || 6, 2), 20) * 1000);
+    return { gadgets: list };
+  },
+  async bleSetup(a, ctx) {
+    ownerOnly(ctx);
+    const t = await targetHost(ctx);
+    const host = a.code ? parseConnectCode(a.code) : t.host;
+    const jobId = ctx.job?.id || crypto.randomUUID();
+    const steps = [];
+    const r = await ble.setup(a.id, { ssid: a.ssid, password: a.password, host }, (st) => {
+      steps.push(st.step);
+      const pct = { connecting: 0.05, pairing_confirm_required: 0.15, pairing_confirmed: 0.35, wifi_scan: 0.4, wifi_connecting: 0.55, wifi_connected: 0.8, auth_ok: 1 }[st.step];
+      ctx.job?.progress(pct ?? 0.5, JSON.stringify({ step: st.step, text: st.text, networks: st.networks }));
+    }, async (q) => {
+      // Ask the page for the Wi-Fi again; it answers with bleAnswer (same job id).
+      ctx.job?.progress(0.5, JSON.stringify({ step: 'need_wifi', reason: q.reason, ssid: q.ssid || '', networks: q.networks }));
+      const ans = await new Promise((resolve) => { bleAnswers.set(jobId, resolve); setTimeout(() => resolve(null), 120000); });
+      bleAnswers.delete(jobId);
+      return ans;
+    });
+    if (t.self) {
+      const mac = normMac(r.device?.mac);
+      if (mac) await editDevices(ctx, (d) => { d[mac] = { ...(d[mac] || {}), mac, name: d[mac]?.name || 'Dou ' + mac.slice(-4), pending: false, blocked: false, setupVia: 'ble', firstSeen: d[mac]?.firstSeen || Date.now() }; });
+    }
+    return { ok: true, device: r.device, host, ssid: r.ssid, self: !!t.self };
+  },
+  async bleAnswer(a, ctx) {
+    ownerOnly(ctx);
+    const res = bleAnswers.get(String(a.job || ''));
+    if (!res) throw new Error('Không còn phiên cài đặt nào đang chờ');
+    res(a.cancel ? null : { ssid: String(a.ssid || ''), password: String(a.password || '') });
+    return { ok: true };
   },
 
   async agents(_a, ctx) {
