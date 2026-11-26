@@ -140,7 +140,13 @@ async function askTarget(ctx, msg) {
   if (t.self || !String(t.host).startsWith('relay:')) return null;
   const sid = await setupIdentity(ctx);
   const r = await askHost(sid, t.host.slice(6), { ...msg, id: sid.id }, { timeoutMs: 15000 });
-  if (r.type === 'setup_refused') throw new Error('Máy chủ AI đã ngắt kết nối với máy này. Nối lại trong Cài đặt.');
+  if (r.type === 'setup_refused') {
+    // The AI computer disconnected this one: drop the link here too, so both sides agree.
+    await ctx.store.delete('targetHost'); // aicw:shared
+    await ctx.store.delete('remoteDevices'); // aicw:shared
+    await ctx.store.set('unlinkedBy', { label: t.label || '', at: Date.now() }); // aicw:shared
+    const e = new Error(`${t.label || 'Máy chủ AI'} đã ngắt kết nối với máy này.`); e.unlinked = true; throw e;
+  }
   if (r.devices) await ctx.store.set('remoteDevices', { at: Date.now(), devices: r.devices, agents: r.agents, agent: r.agent }); // aicw:shared — cache of the AI computer's list
   return r;
 }
@@ -367,10 +373,16 @@ export const commands = {
 
   // ---------- roles: this machine as host, or a setup machine for another host ----------
   async connectCode(_a, ctx) {
+    const t0 = await targetHost(ctx);
+    if (!t0.self) {
+      // Check the link is still accepted (so a disconnect on the AI computer shows here too).
+      try { await askTarget(ctx, { type: 'setup_list' }); } catch {}
+    }
+    const unlinkedBy = await ctx.store.get('unlinkedBy'); // aicw:shared
     const idn = await hostIdentity(ctx);
     const t = await targetHost(ctx);
     const me = await computerName();
-    return { code: CODE_PREFIX + 'relay:' + idn.id + '#' + encodeURIComponent(me), me, target: { ...t, label: t.self ? me : t.label } };
+    return { code: CODE_PREFIX + 'relay:' + idn.id + '#' + encodeURIComponent(me), me, target: { ...t, label: t.self ? me : t.label }, unlinkedBy };
   },
   async setTarget(a, ctx) {
     ownerOnly(ctx);
@@ -397,6 +409,7 @@ export const commands = {
     }
     const t = self ? null : { host, label: String(a.label || hostName || nameInCode(a.code) || 'Máy tính khác').slice(0, 60), at: Date.now() };
     if (t) await ctx.store.set('targetHost', t); else await ctx.store.delete('targetHost'); // aicw:shared
+    await ctx.store.delete('unlinkedBy'); // aicw:shared
     return { target: await targetHost(ctx) };
   },
 
@@ -482,6 +495,7 @@ export const commands = {
         const r = await askTarget(ctx, { type: 'setup_list' });
         return { devices: (r.devices || []).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0)), agents: r.agents, agent: r.agent, remote: { label: t.label } };
       } catch (e) {
+        if (e.unlinked) { const own = await devices(ctx); return { devices: Object.values(own), unlinked: { label: t.label || '', text: e.message } }; }
         const c = (await ctx.store.get('remoteDevices')) || {}; // aicw:shared
         return { devices: (c.devices || []).map((d) => ({ ...d, online: false })), agents: c.agents, agent: c.agent, remote: { label: t.label, offline: true, error: e.message } };
       }

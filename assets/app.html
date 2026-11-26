@@ -191,6 +191,7 @@
     <div class="sec">
       <h3 data-t="What this computer does|Máy này làm gì"></h3>
       <p data-t="Pick one. You can change it any time.|Chọn một vai. Đổi lúc nào cũng được."></p>
+      <div class="notice" id="unlinkNote" hidden></div>
       <div class="roles">
         <button class="role" id="roleAi"><span class="role-ico">🧠</span><b data-t="AI computer|Máy chủ AI"></b><span data-t="Runs the assistant. Gadgets talk to this computer.|Chạy trợ lý. Gadget trò chuyện với máy này."></span></button>
         <button class="role" id="roleSetup"><span class="role-ico">📲</span><b data-t="Setup computer|Máy cài gadget"></b><span data-t="Only sets gadgets up. They talk to the assistant on another computer.|Chỉ dùng để cài gadget. Gadget trò chuyện với trợ lý trên máy khác."></span></button>
@@ -389,6 +390,7 @@ const agentName = (id) => (S.agents.find((a) => a.id === id) || {}).name || id;
 async function loadDevices() {
   const r = await aicw.call('listDevices', {});
   const devices = r.devices || [];
+  if (r.unlinked && !S.unlinkShown) { S.unlinkShown = true; toast(r.unlinked.text + ' ' + T('This computer is the AI computer again.|Máy này quay lại làm máy chủ AI.'), 'bad'); loadServer().catch(() => {}); loadStatus().catch(() => {}); }
   S.devices = devices; S.remote = r.remote || null;
   if (r.agents && r.agents.length) S.agents = r.agents.map((a) => (typeof a === 'string' ? { id: a, name: a } : a)).filter((a) => !/^(member-|aiapp-|okdb-live-|cskh-rehearsal$)/.test(a.id));
   if (r.agent) S.remoteAgent = r.agent;
@@ -661,6 +663,8 @@ async function loadStatus() {
 async function loadServer() {
   const r = await aicw.call('connectCode', {});
   S.target = r.target; S.code = r.code; S.me = r.me;
+  $('#unlinkNote').hidden = !r.unlinkedBy;
+  if (r.unlinkedBy) $('#unlinkNote').textContent = T(`${r.unlinkedBy.label || 'The AI computer'} disconnected this computer ${ago(r.unlinkedBy.at)}. To add gadgets for it again, connect with its code.|${r.unlinkedBy.label || 'Máy chủ AI'} đã ngắt kết nối máy này ${ago(r.unlinkedBy.at)}. Muốn cài gadget cho máy đó, nối lại bằng mã của nó.`);
   const setup = !r.target.self;
   $('#roleAi').classList.toggle('on', !setup); $('#roleSetup').classList.toggle('on', setup);
   $('#secAi').hidden = setup; $('#secSetup').hidden = !setup;
