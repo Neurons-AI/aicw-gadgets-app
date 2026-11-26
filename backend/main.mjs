@@ -333,7 +333,10 @@ export const commands = {
     if (!self && host.startsWith('relay:')) {
       // Introduce this computer to the AI host: it shows up there and can be disconnected.
       try {
-        const r = await askHost(idn, host.slice(6), { type: 'setup_hello', id: idn.id, name: await computerName() });
+        const hello = { type: 'setup_hello', id: idn.id, name: await computerName() };
+        let r;
+        try { r = await askHost(idn, host.slice(6), hello, { timeoutMs: 15000 }); }
+        catch (e1) { ctx.log.warn('askHost try 1: ' + e1.message); await new Promise((x) => setTimeout(x, 1500)); r = await askHost(idn, host.slice(6), hello, { timeoutMs: 25000 }); }
         if (r.type === 'setup_refused') throw new Error('Máy kia đã ngắt kết nối với máy này. Trên máy kia, kết nối lại trong AICW Gadgets.');
         hostName = r.name || '';
       } catch (e) {
@@ -594,8 +597,9 @@ export const commands = {
 
   async restartBridge(_a, ctx) {
     ownerOnly(ctx);
-    await ctx.store.set('restartBridge', Date.now()); // aicw:shared
-    return { restarting: true };
+    const at = Date.now();
+    await ctx.store.set('restartBridge', at); // aicw:shared
+    return { restarting: true, at };
   },
 
   // The bridge itself. Started by the app.ready trigger, the keep-alive timer or the page.
@@ -635,8 +639,9 @@ export const commands = {
       const ac = new AbortController();
       outer.signal.addEventListener('abort', () => ac.abort(), { once: true });
       let relay = s.relay ? 'connecting' : 'off', lan = s.lan ? 'starting' : 'off';
+      const loopAt = Date.now();
       const beat = async () => {
-        await ctx.store.set('bridgeStatus', { beat: Date.now(), pid: me, version: CODE_VERSION, startedAt, hostId: idn.id, relay, lan, lanPort: s.lanPort, online: [...live.keys()] }); // aicw:shared
+        await ctx.store.set('bridgeStatus', { beat: Date.now(), pid: me, version: CODE_VERSION, startedAt, loopAt, hostId: idn.id, relay, lan, lanPort: s.lanPort, online: [...live.keys()] }); // aicw:shared
         ctx.events.emit('bridge', { relay, lan, online: live.size }, { to: 'all' });
       };
       const onChannel = (via) => (ch) => serveGadget(ctx, ch, via, live);

@@ -635,12 +635,14 @@ async function loadStatus() {
     $('#sAgent').value = s.agent; $('#sLang').value = s.language || 'vi';
     $('#sOpen').checked = s.open !== false; $('#sRelay').checked = !!s.relay; $('#sLan').checked = !!s.lan;
   }
-  const on = !!b.running && b.version === st.codeVersion, old = !!b.running && b.version !== st.codeVersion;
-  $('#cnIco').className = 'pc-ico dot-' + (on ? 'green' : old || S.restarting ? 'yellow' : 'red');
-  $('#cnTitle').textContent = on ? T('On: gadgets can talk to this computer|Đang bật: gadget trò chuyện được với máy này') : old || S.restarting ? T('Starting…|Đang khởi động…') : T('Off: gadgets cannot reach this computer|Đang tắt: gadget không nối được vào máy này');
-  $('#cnSub').textContent = on ? T(`Since ${ago(b.startedAt)} · ${(b.online || []).length} gadget(s) online|Từ ${ago(b.startedAt)} · ${(b.online || []).length} gadget đang trực tuyến`) : '';
+  if (S.restartAt && b.running && (b.loopAt || 0) > S.restartAt) { S.restartAt = 0; S.restartedAt = b.loopAt; toast(T('Restarted|Đã khởi động lại'), 'good'); }
+  const restarting = !!S.restartAt;
+  const on = !restarting && !!b.running && b.version === st.codeVersion, old = !!b.running && b.version !== st.codeVersion;
+  $('#cnIco').className = 'pc-ico dot-' + (on ? 'green' : restarting || old || S.restarting ? 'yellow' : 'red');
+  $('#cnTitle').textContent = on ? T('On: gadgets can talk to this computer|Đang bật: gadget trò chuyện được với máy này') : restarting || old || S.restarting ? T('Restarting…|Đang khởi động lại…') : T('Off: gadgets cannot reach this computer|Đang tắt: gadget không nối được vào máy này');
+  $('#cnSub').textContent = on ? (S.restartedAt && Date.now() - S.restartedAt < 600000 ? T(`Restarted ${ago(S.restartedAt)}|Đã khởi động lại ${ago(S.restartedAt)}`) : T(`Since ${ago(b.startedAt)}|Từ ${ago(b.startedAt)}`)) + T(` · ${(b.online || []).length} gadget(s) online| · ${(b.online || []).length} gadget đang trực tuyến`) : restarting ? T('Takes about 10–20 seconds.|Mất khoảng 10–20 giây.') : '';
   const running = on || old;
-  $('#bOn').hidden = running || !!S.restarting; $('#bOff').hidden = !running; $('#bRestart2').hidden = !running;
+  $('#bOn').hidden = running || restarting || !!S.restarting; $('#bOff').hidden = !running || restarting; $('#bRestart2').hidden = !running; $('#bRestart2').disabled = restarting;
   const yes = T('working|đang chạy'), no = T('off|tắt');
   $('#advKv').innerHTML = [
     [T('Connection|Kết nối'), b.running ? T(`on since ${ago(b.startedAt)}|bật từ ${ago(b.startedAt)}`) : s.enabled === false ? no : T('starting|đang khởi động')],
@@ -714,14 +716,16 @@ $('#bOff').onclick = async () => {
   toast(T('Turned off|Đã tắt'), 'good'); setTimeout(() => loadStatus().catch(() => {}), 12000);
 };
 $('#bRestart2').onclick = async () => {
-  S.restarting = true; $('#bRestart2').disabled = true; loadStatus().catch(() => {});
   try {
     await aicw.call('startBridge', {});
-    await aicw.call('restartBridge', {}).catch(() => {});
-    aicw.jobs.start('bridge', {}).catch(() => {});
-    toast(T('Restarting…|Đang khởi động lại…'));
+    const r = await aicw.call('restartBridge', {});
+    S.restartAt = r.at || Date.now();
+    loadStatus().catch(() => {});
+    // Poll until the connection reports a fresh start (or give up after a minute).
+    const until = Date.now() + 60000;
+    const tick = async () => { await loadStatus().catch(() => {}); if (S.restartAt && Date.now() < until) setTimeout(tick, 2000); else if (S.restartAt) { S.restartAt = 0; toast(T('Restart is taking long. Try Turn off, then Turn on.|Khởi động lại lâu quá. Thử Tắt rồi Bật lại.'), 'bad'); loadStatus().catch(() => {}); } };
+    setTimeout(tick, 2000);
   } catch (e) { toast(e.message, 'bad'); }
-  setTimeout(() => { S.restarting = false; $('#bRestart2').disabled = false; loadStatus().catch(() => {}); }, 25000);
 };
 $('#bRestart').onclick = () => aicw.call('restartBridge', {}).then(() => toast(T('Restarting…|Đang khởi động lại…'))).catch((e) => toast(e.message, 'bad'));
 
