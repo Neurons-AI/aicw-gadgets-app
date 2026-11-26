@@ -683,8 +683,17 @@ $('#roleAi').onclick = async () => {
 };
 $('#roleSetup').onclick = () => { if (S.target && !S.target.self) return; $('#bServer').click(); };
 $('#bRotate').onclick = async () => {
-  const ok = aicw.ui?.confirm ? await aicw.ui.confirm(T('Make a new code? Every setup computer and every gadget set up with the old code is cut off and must be set up again.|Tạo mã mới? Mọi máy cài gadget và mọi gadget đã cài bằng mã cũ sẽ bị ngắt và phải cài lại.')) : false;
-  if (ok) aicw.call('rotateCode', {}).then(() => { toast(T('New code made|Đã tạo mã mới'), 'good'); loadServer(); });
+  const ok = aicw.ui?.confirm ? await aicw.ui.confirm(T('Make a new code? Every setup computer and every gadget is removed. Gadgets must be set up again with the new code.|Tạo mã mới? Mọi máy cài gadget và mọi gadget sẽ bị xoá. Gadget phải cài lại bằng mã mới.')) : false;
+  if (!ok) return;
+  try {
+    await aicw.call('rotateCode', {});
+    S.restartAt = Date.now();
+    toast(T('New code made. Old setup computers and gadgets were removed.|Đã tạo mã mới. Đã xoá các máy cài và gadget cũ.'), 'good');
+    await loadServer(); loadDevices().catch(() => {}); loadStatus().catch(() => {});
+    const until = Date.now() + 60000;
+    const tick = async () => { await loadStatus().catch(() => {}); if (S.restartAt && Date.now() < until) setTimeout(tick, 2000); };
+    setTimeout(tick, 2000);
+  } catch (e) { toast(e.message, 'bad'); }
 };
 $('#cpCode').onclick = () => { (aicw.copy || ((t) => navigator.clipboard.writeText(t)))(S.code); toast(T('Copied|Đã sao chép'), 'good'); };
 $('#bServer').onclick = () => { $('#srvErr').textContent = ''; $('#srvCode').value = ''; $('#dlgServer').showModal(); };

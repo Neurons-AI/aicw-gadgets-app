@@ -323,13 +323,15 @@ export const commands = {
     return { ok: true };
   },
   async rotateCode(_a, ctx) {
-    // Make a new code for this computer: every setup computer and every gadget set up
-    // with the old code is cut off and must be set up again.
+    // New code for this computer: the old one stops working, so every setup computer and
+    // every gadget that used it is removed (they must be set up again with the new code).
     ownerOnly(ctx);
     await newHostIdentity(ctx);
     await ctx.store.set('setupLinks', {}); // aicw:shared
+    await editDevices(ctx, (d) => { for (const k of Object.keys(d)) delete d[k]; });
     await ctx.store.set('restartBridge', Date.now()); // aicw:shared
-    return { ok: true };
+    const idn = await hostIdentity(ctx);
+    return { ok: true, code: CODE_PREFIX + 'relay:' + idn.id + '#' + encodeURIComponent(await computerName()) };
   },
 
   // ---------- Bluetooth setup (gadget already has AICW firmware) ----------
@@ -587,7 +589,7 @@ export const commands = {
       await new Promise((r) => setTimeout(r, 14_000));
     }
     const me = process.pid + ':' + (ctx.job?.id || crypto.randomUUID());
-    const idn = await hostIdentity(ctx);
+    let idn = await hostIdentity(ctx);
     const startedAt = Date.now();
     const live = new Map();
     const log = (...x) => ctx.log.info(x.join(' '));
@@ -596,6 +598,7 @@ export const commands = {
     const stop0 = (await ctx.store.get('stopBridge')) || 0; // aicw:shared
     let restartMark = (await ctx.store.get('restartBridge')) || 0; // aicw:shared
     while (!outer.signal.aborted) {
+      idn = await hostIdentity(ctx); // a new code (rotateCode) takes effect on restart
       const s = await settings(ctx);
       const ac = new AbortController();
       outer.signal.addEventListener('abort', () => ac.abort(), { once: true });
