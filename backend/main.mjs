@@ -62,13 +62,13 @@ const sessionKeyOf = (agent, mac) => `agent:${agent}:app-${SKILL}-${normMac(mac)
 // (Kept out of ctx.store: a whole-store write from another process can drop a key.)
 async function keyFile(ctx, name, legacyKey) {
   const fs = await import('node:fs'), path = await import('node:path');
-  const dir = ctx.dataDir || process.cwd();
+  const dir = ctx.dataDir || process.cwd(); // aicw:shared — this computer's own keys, one per computer
   const file = path.join(dir, name);
   try { const hex = fs.readFileSync(file, 'utf8').trim(); if (/^[0-9a-f]{64}$/.test(hex)) return hex; } catch {}
   let hex = legacyKey ? await ctx.store.get(legacyKey) : null; // aicw:shared — migrate once
   if (!/^[0-9a-f]{64}$/.test(String(hex || ''))) hex = crypto.randomBytes(32).toString('hex');
-  fs.mkdirSync(dir, { recursive: true });
-  try { fs.writeFileSync(file, hex, { flag: 'wx' }); }
+  fs.mkdirSync(dir, { recursive: true }); // aicw:shared
+  try { fs.writeFileSync(file, hex, { flag: 'wx' }); } // aicw:shared
   catch { hex = fs.readFileSync(file, 'utf8').trim(); } // another process wrote it first: use that one
   return hex;
 }
@@ -76,7 +76,7 @@ async function setupIdentity(ctx) { return identity(Buffer.from(await keyFile(ct
 async function hostIdentity(ctx) { return identity(Buffer.from(await keyFile(ctx, 'host-identity.hex', 'relaySeed'), 'hex')); }
 async function newHostIdentity(ctx) {
   const fs = await import('node:fs'), path = await import('node:path');
-  fs.writeFileSync(path.join(ctx.dataDir || process.cwd(), 'host-identity.hex'), crypto.randomBytes(32).toString('hex'));
+  fs.writeFileSync(path.join(ctx.dataDir || process.cwd(), 'host-identity.hex'), crypto.randomBytes(32).toString('hex')); // aicw:shared
 }
 async function askAgent(ctx, agent, mac, text) {
   const out = await ctx.host.tool('sessions_send', { sessionKey: sessionKeyOf(agent, mac), message: text, timeoutSeconds: 180 });
