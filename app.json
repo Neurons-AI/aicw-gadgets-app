@@ -2,39 +2,417 @@
   "schema": "aicw.app.v1",
   "name": "AICW Gadgets",
   "icon": "📟",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Flash, set up and talk to AICW voice gadgets (Dou on an M5Stack StickS3 and other ESP32 boards) from your own AICoworker.",
   "window": {
     "entry": "assets/app.html",
-    "style": "clean",
-    "session": "dedicated"
+    "style": "aurora",
+    "session": "dedicated",
+    "libs": [
+      "aicw-app"
+    ]
   },
   "backend": {
     "runtime": "node",
     "entry": "backend/main.mjs",
     "commands": {
-      "hello": {
-        "description": "Example command — replace it with your own.",
+      "status": {
+        "description": "Bridge identity (relay hostId), settings, bridge state, LAN addresses.",
+        "agent": true,
+        "args": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      "listDevices": {
+        "description": "Every gadget this computer knows, newest first.",
+        "agent": true,
+        "args": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      "updateDevice": {
+        "description": "Rename a gadget, choose its agent/voice/language, allow or block it.",
+        "mutating": true,
+        "agent": true,
+        "args": {
+          "type": "object",
+          "required": [
+            "mac"
+          ],
+          "properties": {
+            "mac": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F:.-]{12,17}$"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "agent": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "blocked": {
+              "type": "boolean"
+            },
+            "pending": {
+              "type": "boolean"
+            },
+            "voice": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "language": {
+              "type": "string",
+              "maxLength": 8
+            }
+          }
+        },
+        "consumer": false
+      },
+      "removeDevice": {
+        "description": "Forget a gadget.",
+        "mutating": true,
+        "args": {
+          "type": "object",
+          "required": [
+            "mac"
+          ],
+          "properties": {
+            "mac": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F:.-]{12,17}$"
+            }
+          }
+        },
+        "consumer": false
+      },
+      "updateSettings": {
+        "description": "Bridge settings: default agent, LAN on/off and port, relay on/off, accept unknown gadgets, language, voice.",
         "mutating": true,
         "args": {
           "type": "object",
           "properties": {
-            "name": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "agent": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "lan": {
+              "type": "boolean"
+            },
+            "lanPort": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 65535
+            },
+            "relay": {
+              "type": "boolean"
+            },
+            "open": {
+              "type": "boolean"
+            },
+            "language": {
+              "type": "string",
+              "maxLength": 8
+            },
+            "voice": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "sttEngine": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "ttsEngine": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        },
+        "consumer": false
+      },
+      "channelHistory": {
+        "description": "The last messages of a gadget's chat with its agent.",
+        "agent": true,
+        "timeoutMs": 30000,
+        "args": {
+          "type": "object",
+          "required": [
+            "mac"
+          ],
+          "properties": {
+            "mac": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F:.-]{12,17}$"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "consumer": false
+      },
+      "probeAgent": {
+        "description": "Send one test message to the agent in a gadget's chat.",
+        "timeoutMs": 180000,
+        "args": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "agent": {
+              "type": "string"
+            },
+            "mac": {
               "type": "string"
             }
           }
+        },
+        "consumer": false
+      },
+      "arm": {
+        "description": "Turn on the keep-alive timer that restarts the bridge.",
+        "mutating": true,
+        "args": {
+          "type": "object",
+          "properties": {}
+        },
+        "consumer": false
+      },
+      "startBridge": {
+        "description": "Turn the bridge on.",
+        "mutating": true,
+        "args": {
+          "type": "object",
+          "properties": {}
+        },
+        "consumer": false
+      },
+      "stopBridge": {
+        "description": "Turn the bridge off.",
+        "mutating": true,
+        "args": {
+          "type": "object",
+          "properties": {}
+        },
+        "consumer": false
+      },
+      "restartBridge": {
+        "description": "Restart the bridge with the current settings.",
+        "mutating": true,
+        "args": {
+          "type": "object",
+          "properties": {}
+        },
+        "consumer": false
+      },
+      "bridge": {
+        "description": "The gadget bridge (AICW relay host + LAN). Runs as a job until stopped.",
+        "job": true,
+        "mutating": true,
+        "args": {
+          "type": "object",
+          "properties": {}
         }
+      },
+      "usbPorts": {
+        "description": "USB serial ports on this computer and which boards each may be.",
+        "args": {
+          "type": "object",
+          "properties": {}
+        },
+        "consumer": false
+      },
+      "boards": {
+        "description": "Supported boards and the newest firmware release.",
+        "agent": true,
+        "timeoutMs": 30000,
+        "args": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      "gadgetStatus": {
+        "description": "Ask a gadget on USB what firmware it runs and its state.",
+        "timeoutMs": 20000,
+        "args": {
+          "type": "object",
+          "required": [
+            "port"
+          ],
+          "properties": {
+            "port": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            }
+          }
+        },
+        "consumer": false
+      },
+      "setupGadget": {
+        "description": "Send Wi-Fi and the bridge address to a gadget on USB.",
+        "mutating": true,
+        "timeoutMs": 45000,
+        "args": {
+          "type": "object",
+          "required": [
+            "port"
+          ],
+          "properties": {
+            "port": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "ssid": {
+              "type": "string",
+              "maxLength": 32
+            },
+            "password": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 63
+            },
+            "useThisComputer": {
+              "type": "boolean"
+            }
+          }
+        },
+        "consumer": false
+      },
+      "rebootGadget": {
+        "description": "Restart a gadget on USB into its firmware.",
+        "mutating": true,
+        "timeoutMs": 60000,
+        "args": {
+          "type": "object",
+          "required": [
+            "port"
+          ],
+          "properties": {
+            "port": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            }
+          }
+        },
+        "consumer": false
+      },
+      "gadgetLog": {
+        "description": "Read a gadget's serial log for a few seconds.",
+        "timeoutMs": 30000,
+        "args": {
+          "type": "object",
+          "required": [
+            "port"
+          ],
+          "properties": {
+            "port": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        },
+        "consumer": false
+      },
+      "flashGadget": {
+        "description": "Download and flash AICW Gadgets firmware onto a board on USB.",
+        "job": true,
+        "mutating": true,
+        "args": {
+          "type": "object",
+          "required": [
+            "port",
+            "board"
+          ],
+          "properties": {
+            "port": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "board": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "localBuild": {
+              "type": "string",
+              "maxLength": 400
+            }
+          }
+        },
+        "consumer": false
+      },
+      "agents": {
+        "description": "Agent ids on this computer (to pick which agent a gadget talks to).",
+        "args": {
+          "type": "object",
+          "properties": {}
+        },
+        "consumer": false
       }
     }
   },
   "permissions": {
     "llm": false,
     "agent": false,
-    "host": [],
-    "schedule": false
+    "host": [
+      "tts",
+      "stt",
+      "shell",
+      "notify"
+    ],
+    "schedule": false,
+    "triggers": [
+      "lifecycle",
+      "timer"
+    ]
   },
   "secrets": [],
   "requires": {
-    "aicoworker": ">=2026.8.1"
-  }
+    "aicoworker": ">=2026.8.5"
+  },
+  "triggers": [
+    {
+      "name": "boot",
+      "on": "lifecycle",
+      "event": "app.ready",
+      "run": "bridge",
+      "title": "Khi AICoworker khởi động, bật cầu nối cho gadget"
+    },
+    {
+      "name": "keepalive",
+      "on": "timer",
+      "run": "bridge",
+      "title": "Mỗi 15 phút, bật lại cầu nối nếu nó đã dừng"
+    }
+  ],
+  "setup": {
+    "install": [
+      {
+        "kind": "npm"
+      }
+    ]
+  },
+  "compatibility": "Needs a USB data cable to flash a gadget. Works on macOS, Windows and Linux."
 }

@@ -1,12 +1,42 @@
 [
   {
-    "command": "hello",
+    "command": "listDevices",
+    "args": {},
+    "expect": {
+      "devices": []
+    }
+  },
+  {
+    "command": "updateSettings",
     "args": {
-      "name": "Lan"
+      "lanPort": 8766,
+      "open": false
     },
     "expect": {
-      "message": "Hello Lan!",
-      "visits": 1
+      "settings": {
+        "lanPort": 8766,
+        "open": false
+      }
+    }
+  },
+  {
+    "command": "updateSettings",
+    "args": {
+      "lanPort": 8765
+    },
+    "expect": {
+      "settings": {
+        "lanPort": 8765
+      }
+    }
+  },
+  {
+    "command": "status",
+    "args": {},
+    "expect": {
+      "settings": {
+        "agent": "main"
+      }
     }
   }
 ]

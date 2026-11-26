@@ -1,0 +1,313 @@
+{
+ "repo": "Neurons-AI/aicoworker-gadgets",
+ "boards": [
+  {
+   "id": "devkit",
+   "upstream": "devkit",
+   "name": "Espressif ESP32-C5 DevKitC-1",
+   "chip": "esp32c5",
+   "usb": [],
+   "overlays": [],
+   "aicw": "port"
+  },
+  {
+   "id": "espressif-s3-devkitc-1",
+   "upstream": "espressif-s3-devkitc-1",
+   "name": "Espressif ESP32-S3-DevKitC-1 (N8R8)",
+   "chip": "esp32s3",
+   "usb": [],
+   "overlays": [
+    "devices/sdkconfig.espressif-s3-devkitc-1"
+   ],
+   "aicw": "port"
+  },
+  {
+   "id": "espressif-box-3",
+   "upstream": "muse-espressif-box-3",
+   "name": "Espressif ESP32-S3-BOX-3",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-espressif-box-3"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "m5stack-cores3",
+   "upstream": "muse-m5stack-cores3",
+   "name": "M5Stack CoreS3",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-m5stack-cores3"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "m5stack-atoms3",
+   "upstream": "muse-m5stack-atoms3",
+   "name": "M5Stack AtomS3 + Atomic Voice Base (experimental)",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-m5stack-atoms3"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "waveshare-s3-175c",
+   "upstream": "muse-waveshare-s3-175c",
+   "name": "Waveshare ESP32-S3-Touch-AMOLED-1.75C",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-waveshare-s3-175c"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "waveshare-s3-185b",
+   "upstream": "muse-waveshare-s3-185b",
+   "name": "Waveshare ESP32-S3-Touch-LCD-1.85B",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-waveshare-s3-185b"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "waveshare-s3-185c",
+   "upstream": "muse-waveshare-s3-185c",
+   "name": "Waveshare ESP32-S3-Touch-LCD-1.85C",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-waveshare-s3-185c"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "seeed-xiao-s3-147",
+   "upstream": "muse-seeed-xiao-s3-147",
+   "name": "Seeed Studio XIAO ESP32-S3 1.47\" Touch Display",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-seeed-xiao-s3-147"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "sensecap-watcher",
+   "upstream": "muse-sensecap-watcher",
+   "name": "Seeed Studio SenseCAP Watcher",
+   "chip": "esp32s3",
+   "usb": [
+    "1a86:55d2"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-sensecap-watcher"
+   ],
+   "aicw": "build",
+   "pacing": {
+    "chunk": 32,
+    "factor": 2
+   }
+  },
+  {
+   "id": "sensecap-indicator",
+   "upstream": "sensecap-indicator",
+   "name": "Seeed Studio SenseCAP Indicator",
+   "chip": "esp32s3",
+   "usb": [],
+   "overlays": [
+    "devices/sdkconfig.sensecap-indicator"
+   ],
+   "aicw": "port"
+  },
+  {
+   "id": "reterminal-e1001",
+   "upstream": "reterminal-e1001",
+   "name": "Seeed Studio reTerminal E1001 (7.5\" e-paper)",
+   "chip": "esp32s3",
+   "usb": [],
+   "overlays": [
+    "devices/sdkconfig.reterminal-e1001"
+   ],
+   "aicw": "port"
+  },
+  {
+   "id": "reterminal-e1002",
+   "upstream": "reterminal-e1002",
+   "name": "Seeed Studio reTerminal E1002 (7.3\" colour e-paper)",
+   "chip": "esp32s3",
+   "usb": [],
+   "overlays": [
+    "devices/sdkconfig.reterminal-e1002"
+   ],
+   "aicw": "port"
+  },
+  {
+   "id": "reterminal-sticky",
+   "upstream": "reterminal-sticky",
+   "name": "Seeed Studio reTerminal Sticky (3.97\" e-paper, experimental)",
+   "chip": "esp32s3",
+   "usb": [
+    "1a86:55d3"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.reterminal-sticky"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "aipi",
+   "upstream": "muse-aipi",
+   "name": "AIPI Lite",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-aipi"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "m5stack-sticks3",
+   "upstream": "muse-m5stack-sticks3",
+   "name": "M5Stack StickS3",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-m5stack-sticks3"
+   ],
+   "aicw": "ready"
+  },
+  {
+   "id": "ideaspark",
+   "upstream": "ideaspark",
+   "name": "ideaspark ESP32 with 1.9\" display",
+   "chip": "esp32",
+   "usb": [
+    "1a86:7523"
+   ],
+   "overlays": [
+    "devices/sdkconfig.ideaspark"
+   ],
+   "aicw": "port"
+  },
+  {
+   "id": "home-assistant-voice",
+   "upstream": "home-assistant-voice",
+   "name": "Home Assistant Voice Preview Edition",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.home-assistant-voice"
+   ],
+   "aicw": "port"
+  },
+  {
+   "id": "m5stack-stopwatch",
+   "upstream": "muse-m5stack-stopwatch",
+   "name": "M5Stack StopWatch",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-m5stack-stopwatch"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "m5stack-stickc-plus2",
+   "upstream": "muse-m5stack-stickc-plus2",
+   "name": "M5Stack StickC Plus2",
+   "chip": "esp32",
+   "usb": [
+    "1a86:55d4"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-m5stack-stickc-plus2"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "m5stack-core2",
+   "upstream": "muse-m5stack-core2",
+   "name": "M5Stack Core2 (v1.0)",
+   "chip": "esp32",
+   "usb": [
+    "10c4:ea60",
+    "1a86:55d4"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-m5stack-core2"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "waveshare-s3-175",
+   "upstream": "muse-waveshare-s3-175",
+   "name": "Waveshare ESP32-S3-Touch-AMOLED-1.75",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-waveshare-s3-175"
+   ],
+   "aicw": "build"
+  },
+  {
+   "id": "waveshare-s3-216",
+   "upstream": "muse-waveshare-s3-216",
+   "name": "Waveshare ESP32-S3-Touch-AMOLED-2.16",
+   "chip": "esp32s3",
+   "usb": [
+    "303a:1001"
+   ],
+   "overlays": [
+    "devices/sdkconfig.dou",
+    "devices/sdkconfig.dou-waveshare-s3-216"
+   ],
+   "aicw": "build"
+  }
+ ]
+}

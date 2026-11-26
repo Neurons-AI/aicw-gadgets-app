@@ -1,0 +1,9 @@
+{
+  "name": "aicw-gadgets",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "esptool-js": "0.7.1",
+    "serialport": "13.0.0"
+  }
+}

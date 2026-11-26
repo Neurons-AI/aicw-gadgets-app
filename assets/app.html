@@ -1,33 +1,380 @@
-<!-- The page of AICW Gadgets. Design it freely: any layout, any of the 12 style presets
-     (app.json → window.style), your own CSS, libraries via window.libs. The ui-* classes
-     and window.aicw are there to use, not a limit. Guides: references/page.md and the
-     artifact-design skill. -->
-<div class="ui-app narrow">
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>AICW Gadgets</title>
+<style>
+  .shell { display: grid; grid-template-columns: 200px 1fr; gap: var(--ui-gap-lg, 20px); min-height: 100%; }
+  @media (max-width: 680px) { .shell { grid-template-columns: 1fr; } .nav { flex-direction: row; overflow-x: auto; } }
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav button { text-align: left; white-space: nowrap; }
+  .nav button.on { background: var(--ui-accent); color: var(--ui-accent-fg, #fff); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 0; }
+  .muted { color: var(--ui-muted-fg); font-size: 0.9em; }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size: 0.85em; word-break: break-all; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--ui-muted-fg); }
+  .dot.ok { background: var(--ui-good); } .dot.warn { background: var(--ui-warn); } .dot.bad { background: var(--ui-bad); }
+  .gadget { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; }
+  .face { width: 56px; height: 56px; }
+  .chat { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow: auto; padding: 4px; }
+  .msg { padding: 8px 12px; border-radius: 12px; max-width: 85%; white-space: pre-wrap; line-height: 1.4; }
+  .msg.user { align-self: flex-end; background: var(--ui-accent); color: var(--ui-accent-fg, #fff); }
+  .msg.assistant { align-self: flex-start; background: var(--ui-surface-2, var(--ui-surface)); border: 1px solid var(--ui-border); }
+  .board { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  pre.log { max-height: 240px; overflow: auto; font-size: 0.78em; white-space: pre-wrap; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="ui-app">
   <header class="ui-header">
-    <div>
-      <h1 class="ui-title">📟 AICW Gadgets</h1>
-      <p class="ui-subtitle">Flash, set up and talk to AICW voice gadgets (Dou on an M5Stack StickS3 and other ESP32 boards) from your own AICoworker.</p>
-    </div>
+    <div class="ui-eyebrow" data-t="AICoworker · voice gadgets|AICoworker · thiết bị giọng nói"></div>
+    <h1 class="ui-title">AICW Gadgets</h1>
+    <p class="ui-subtitle" data-t="Flash a board, connect it to your agent, and see every gadget's chat.|Nạp firmware cho bo mạch, nối với agent của bạn, và xem cuộc trò chuyện của từng gadget."></p>
   </header>
 
-  <div class="ui-card ui-stack">
-    <div class="ui-row">
-      <input class="ui-input ui-grow" id="name" placeholder="Your name">
-      <button class="ui-btn primary" id="go" type="button">Say hello</button>
-    </div>
-    <div class="ui-alert info ui-hidden" id="out"></div>
-    <div class="ui-alert bad ui-hidden" id="error"></div>
+  <div class="shell">
+    <nav class="nav">
+      <button class="ui-btn ghost on" data-view="home" data-t="Overview|Tổng quan"></button>
+      <button class="ui-btn ghost" data-view="gadgets" data-t="Gadgets|Thiết bị"></button>
+      <button class="ui-btn ghost" data-view="install" data-t="Install|Cài đặt"></button>
+      <button class="ui-btn ghost" data-view="channels" data-t="Channels|Kênh chat"></button>
+      <button class="ui-btn ghost" data-view="settings" data-t="Settings|Cài đặt cầu nối"></button>
+    </nav>
+
+    <main>
+      <!-- Overview -->
+      <section data-pane="home">
+        <div class="ui-grid cols-3">
+          <div class="ui-kpi"><div class="ui-kpi-label" data-t="Bridge|Cầu nối"></div><div class="ui-kpi-value" id="kBridge">–</div><div class="ui-kpi-delta" id="kBridgeSub"></div></div>
+          <div class="ui-kpi"><div class="ui-kpi-label" data-t="Gadgets online|Đang kết nối"></div><div class="ui-kpi-value" id="kOnline">–</div><div class="ui-kpi-delta" id="kTotal"></div></div>
+          <div class="ui-kpi"><div class="ui-kpi-label" data-t="Firmware|Firmware"></div><div class="ui-kpi-value" id="kFw">–</div><div class="ui-kpi-delta" id="kFwSub"></div></div>
+        </div>
+        <div class="ui-card" style="margin-top:16px">
+          <h3 data-t="How gadgets reach this computer|Gadget kết nối tới máy này thế nào"></h3>
+          <div class="row"><span class="dot" id="dRelay"></span><b data-t="Anywhere (AICW relay)|Mọi nơi (relay AICW)"></b><span class="muted" id="tRelay"></span></div>
+          <div class="mono" id="hostId" style="margin:6px 0 12px"></div>
+          <div class="row"><span class="dot" id="dLan"></span><b data-t="Same Wi-Fi (LAN)|Cùng Wi-Fi (LAN)"></b><span class="muted" id="tLan"></span></div>
+          <div class="row" style="margin-top:14px">
+            <button class="ui-btn primary sm" id="bStart" data-t="Turn bridge on|Bật cầu nối"></button>
+            <button class="ui-btn sm" id="bRestart" data-t="Restart|Khởi động lại"></button>
+            <button class="ui-btn ghost sm" id="bStop" data-t="Turn off|Tắt"></button>
+          </div>
+        </div>
+        <div class="ui-alert" id="pendingAlert" hidden style="margin-top:16px"></div>
+      </section>
+
+      <!-- Gadgets -->
+      <section data-pane="gadgets" hidden>
+        <div class="row" style="margin-bottom:12px"><h3 class="grow" data-t="Your gadgets|Gadget của bạn"></h3><button class="ui-btn sm" id="bReload" data-t="Refresh|Tải lại"></button></div>
+        <div id="gadgetList" class="ui-list boxed"></div>
+        <div class="ui-empty" id="gadgetEmpty" hidden data-t="No gadget yet. Open Install to flash your first board.|Chưa có gadget nào. Vào Cài đặt để nạp bo mạch đầu tiên."></div>
+
+        <div class="ui-card" id="editCard" hidden style="margin-top:16px">
+          <h3 id="editTitle"></h3>
+          <div class="ui-grid cols-2">
+            <label class="ui-field"><span class="ui-label" data-t="Name|Tên"></span><input class="ui-input" id="eName" maxlength="40"></label>
+            <label class="ui-field"><span class="ui-label" data-t="Agent|Agent"></span><select class="ui-select" id="eAgent"></select></label>
+            <label class="ui-field"><span class="ui-label" data-t="Language|Ngôn ngữ"></span><select class="ui-select" id="eLang"><option value="">—</option><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
+            <label class="ui-field"><span class="ui-label" data-t="Voice|Giọng đọc"></span><input class="ui-input" id="eVoice" maxlength="64" placeholder="auto"></label>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button class="ui-btn primary sm" id="eSave" data-t="Save|Lưu"></button>
+            <button class="ui-btn sm" id="eBlock"></button>
+            <button class="ui-btn ghost sm" id="eChat" data-t="Open chat|Mở kênh chat"></button>
+            <span class="grow"></span>
+            <button class="ui-btn danger sm" id="eRemove" data-t="Forget|Xoá"></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Install -->
+      <section data-pane="install" hidden>
+        <div class="ui-steps" style="margin-bottom:16px">
+          <div class="ui-step active" id="s1" data-t="1. Plug in|1. Cắm USB"></div>
+          <div class="ui-step" id="s2" data-t="2. Flash|2. Nạp firmware"></div>
+          <div class="ui-step" id="s3" data-t="3. Wi-Fi|3. Wi-Fi"></div>
+        </div>
+        <div class="ui-card">
+          <div class="row"><h3 class="grow" data-t="Board on USB|Bo mạch đang cắm"></h3><button class="ui-btn sm" id="bScan" data-t="Scan|Dò tìm"></button></div>
+          <p class="muted" data-t="Plug the board in with a USB data cable, then press Scan.|Cắm bo mạch bằng cáp USB có truyền dữ liệu, rồi bấm Dò tìm."></p>
+          <select class="ui-select" id="port"></select>
+          <div id="portInfo" class="muted" style="margin-top:8px"></div>
+        </div>
+        <div class="ui-card" style="margin-top:12px">
+          <h3 data-t="Firmware|Firmware"></h3>
+          <label class="ui-field"><span class="ui-label" data-t="Board|Bo mạch"></span><select class="ui-select" id="board"></select></label>
+          <div class="muted" id="boardInfo"></div>
+          <div class="row" style="margin-top:10px">
+            <button class="ui-btn primary" id="bFlash" data-t="Flash AICW Gadgets|Nạp AICW Gadgets"></button>
+            <button class="ui-btn ghost sm" id="bReboot" data-t="Restart board|Khởi động lại bo"></button>
+          </div>
+          <div class="ui-progress" id="flashBar" hidden style="margin-top:10px"><span style="width:0%"></span></div>
+          <div class="muted" id="flashNote"></div>
+        </div>
+        <div class="ui-card" style="margin-top:12px">
+          <h3 data-t="Connect to Wi-Fi and to this computer|Nối Wi-Fi và nối với máy này"></h3>
+          <div class="ui-grid cols-2">
+            <label class="ui-field"><span class="ui-label" data-t="Wi-Fi name|Tên Wi-Fi"></span><input class="ui-input" id="ssid" maxlength="32" autocomplete="off"></label>
+            <label class="ui-field"><span class="ui-label" data-t="Password|Mật khẩu"></span><input class="ui-input" id="pass" type="password" maxlength="64" autocomplete="off"></label>
+          </div>
+          <label class="ui-field" style="margin-top:8px"><span class="ui-label" data-t="Connect through|Kết nối qua"></span>
+            <select class="ui-select" id="via"><option value="relay" data-t="AICW relay — works on any network|Relay AICW — dùng được ở mọi mạng"></option><option value="lan" data-t="Same Wi-Fi only (faster)|Chỉ cùng Wi-Fi (nhanh hơn)"></option></select></label>
+          <div class="row" style="margin-top:10px"><button class="ui-btn primary" id="bSetup" data-t="Send to gadget|Gửi cho gadget"></button><button class="ui-btn ghost sm" id="bStatus" data-t="Check gadget|Kiểm tra gadget"></button><button class="ui-btn ghost sm" id="bLog" data-t="Read log|Xem log"></button></div>
+          <div id="setupOut" class="muted" style="margin-top:8px"></div>
+          <pre class="log ui-card" id="logOut" hidden></pre>
+        </div>
+      </section>
+
+      <!-- Channels -->
+      <section data-pane="channels" hidden>
+        <div class="row" style="margin-bottom:12px">
+          <select class="ui-select grow" id="chGadget"></select>
+          <button class="ui-btn sm" id="chReload" data-t="Refresh|Tải lại"></button>
+        </div>
+        <div class="muted mono" id="chKey"></div>
+        <div class="ui-card" style="margin-top:10px"><div class="chat" id="chat"></div></div>
+        <div class="row" style="margin-top:10px">
+          <input class="ui-input grow" id="chText" data-tp="Type to test this gadget's agent…|Gõ để thử agent của gadget này…">
+          <button class="ui-btn primary" id="chSend" data-t="Send|Gửi"></button>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section data-pane="settings" hidden>
+        <div class="ui-card">
+          <div class="ui-grid cols-2">
+            <label class="ui-field"><span class="ui-label" data-t="Default agent|Agent mặc định"></span><select class="ui-select" id="sAgent"></select></label>
+            <label class="ui-field"><span class="ui-label" data-t="Language|Ngôn ngữ"></span><select class="ui-select" id="sLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
+            <label class="ui-field"><span class="ui-label" data-t="LAN port|Cổng LAN"></span><input class="ui-input" id="sPort" type="number" min="1024" max="65535"></label>
+            <label class="ui-field"><span class="ui-label" data-t="Voice|Giọng đọc"></span><input class="ui-input" id="sVoice" maxlength="64" placeholder="auto"></label>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <label class="row"><input type="checkbox" id="sRelay"> <span data-t="Reachable from anywhere (AICW relay)|Kết nối từ mọi nơi (relay AICW)"></span></label>
+            <label class="row"><input type="checkbox" id="sLan"> <span data-t="Reachable on this Wi-Fi (LAN)|Kết nối trong cùng Wi-Fi (LAN)"></span></label>
+            <label class="row"><input type="checkbox" id="sOpen"> <span data-t="Accept new gadgets without asking|Nhận gadget mới không cần hỏi"></span></label>
+          </div>
+          <h4 style="margin-top:16px" data-t="Speech|Giọng nói"></h4>
+          <div class="ui-grid cols-2">
+            <div><div class="muted" data-t="Hearing (speech to text)|Nghe (giọng nói thành chữ)"></div><div data-speech-picker="stt"></div></div>
+            <div><div class="muted" data-t="Speaking (text to speech)|Nói (đọc câu trả lời)"></div><div data-speech-picker="tts"></div></div>
+          </div>
+          <div class="row" style="margin-top:14px"><button class="ui-btn primary" id="sSave" data-t="Save and restart bridge|Lưu và khởi động lại cầu nối"></button><span class="muted" id="sOut"></span></div>
+        </div>
+      </section>
+    </main>
   </div>
 </div>
 
 <script>
-  var $ = function (id) { return document.getElementById(id); };
-  $('go').onclick = function () {
-    var btn = this; aicw.ui.busy(btn, true); $('error').classList.add('ui-hidden');
-    // A backend command: runs on the machine with no model turn.
-    aicw.call('hello', { name: $('name').value.trim() })
-      .then(function (r) { $('out').textContent = r.message + ' (' + r.visits + ')'; $('out').classList.remove('ui-hidden'); },
-            function (e) { $('error').textContent = e.message; $('error').classList.remove('ui-hidden'); })
-      .then(function () { aicw.ui.busy(btn, false); });
-  };
+const $ = (s) => document.querySelector(s);
+const vi = () => String(aicw.locale || navigator.language || '').toLowerCase().startsWith('vi');
+const T = (s) => { const [en, v] = s.split('|'); return vi() && v ? v : en; };
+function translate() {
+  document.querySelectorAll('[data-t]').forEach((el) => { el.textContent = T(el.dataset.t); });
+  document.querySelectorAll('[data-tp]').forEach((el) => { el.placeholder = T(el.dataset.tp); });
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ago = (t) => { if (!t) return ''; const s = (Date.now() - t) / 1000; return s < 60 ? T('just now|vừa xong') : s < 3600 ? Math.round(s / 60) + (vi() ? ' phút trước' : ' min ago') : s < 86400 ? Math.round(s / 3600) + (vi() ? ' giờ trước' : ' h ago') : new Date(t).toLocaleDateString(); };
+const fail = (where) => (e) => { aicw.toast ? aicw.toast(String(e.message || e), { tone: 'bad' }) : alert(e.message || e); console.warn(where, e); };
+
+const DOU = (glow = '#fff4c2', mood = '') => `<svg class="face" viewBox="-10 -10 220 225"><path d="${(() => { let d = ''; for (let i = 0; i <= 360; i++) { const a = i / 360 * Math.PI * 2, r = 80 + 1.6 * Math.cos(a * 18); d += (i ? 'L' : 'M') + (100 + Math.cos(a) * r).toFixed(1) + ' ' + (105 + Math.sin(a) * r).toFixed(1); } return d; })()}Z" fill="#2a2638" stroke="${glow}" stroke-width="7"/>${[77, 123].map((x) => { let p = ''; for (let t = 0.6; t <= 8.4; t += 0.2) { const r = 18 * t / 8.4; p += (p ? 'L' : 'M') + (x + Math.cos(t) * r).toFixed(1) + ' ' + (91 + Math.sin(t) * r).toFixed(1); } return `<path d="${p}" stroke="${glow}" stroke-width="8" fill="none" stroke-linecap="round"/>`; }).join('')}${mood === 'off' ? '' : ''}</svg>`;
+
+let S = { status: null, devices: [], boards: [], ports: [], agents: ['main'], sel: null };
+
+// ---------- navigation ----------
+function show(v) {
+  document.querySelectorAll('[data-pane]').forEach((p) => (p.hidden = p.dataset.pane !== v));
+  document.querySelectorAll('.nav button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
+  aicw.setState({ ...(aicw.getState() || {}), view: v });
+  if (v === 'channels') loadChat();
+  if (v === 'install' && !S.ports.length) scan();
+}
+document.querySelectorAll('.nav button').forEach((b) => (b.onclick = () => show(b.dataset.view)));
+
+// ---------- overview ----------
+async function loadStatus() {
+  const st = await aicw.call('status', {});
+  S.status = st;
+  const b = st.bridge || {};
+  const on = b.running;
+  $('#kBridge').textContent = on ? T('On|Đang bật') : st.settings.enabled === false ? T('Off|Đã tắt') : T('Starting…|Đang khởi động…');
+  $('#kBridgeSub').textContent = on ? (vi() ? 'từ ' : 'since ') + ago(b.startedAt) : '';
+  $('#hostId').textContent = 'relay:' + st.hostId;
+  const rel = st.settings.relay ? (b.relay || '…') : 'off', lan = st.settings.lan ? (b.lan || '…') : 'off';
+  $('#dRelay').className = 'dot ' + (rel === 'up' ? 'ok' : rel === 'off' ? '' : 'warn');
+  $('#tRelay').textContent = rel === 'up' ? T('ready|sẵn sàng') : rel === 'off' ? T('off|tắt') : rel;
+  $('#dLan').className = 'dot ' + (String(lan).startsWith('up') ? 'ok' : lan === 'off' ? '' : 'warn');
+  $('#tLan').textContent = String(lan).startsWith('up') ? (st.lanAddresses || []).map((a) => `${a}:${st.settings.lanPort}`).join(' · ') : lan === 'off' ? T('off|tắt') : lan;
+  $('#bStart').hidden = on; $('#bStop').hidden = !on; $('#bRestart').hidden = !on;
+  fillSettings(st.settings);
+}
+$('#bStart').onclick = () => aicw.call('startBridge', {}).then(() => aicw.jobs.start('bridge', {})).then(() => setTimeout(loadStatus, 2500)).catch(fail('start'));
+$('#bStop').onclick = () => aicw.call('stopBridge', {}).then(() => setTimeout(loadStatus, 12000)).catch(fail('stop'));
+$('#bRestart').onclick = () => aicw.call('restartBridge', {}).then(() => setTimeout(loadStatus, 4000)).catch(fail('restart'));
+
+// ---------- gadgets ----------
+async function loadDevices() {
+  const { devices } = await aicw.call('listDevices', {});
+  S.devices = devices;
+  const online = devices.filter((d) => d.online).length;
+  $('#kOnline').textContent = online;
+  $('#kTotal').textContent = devices.length + T(' gadgets| gadget');
+  const pending = devices.filter((d) => d.pending);
+  $('#pendingAlert').hidden = !pending.length;
+  $('#pendingAlert').innerHTML = pending.map((d) => `${T('A new gadget wants to connect|Có gadget mới muốn kết nối')}: <b class="mono">${esc(d.mac)}</b> <button class="ui-btn sm primary" data-allow="${d.mac}">${T('Allow|Cho phép')}</button> <button class="ui-btn sm" data-deny="${d.mac}">${T('Block|Chặn')}</button>`).join('<br>');
+  $('#gadgetEmpty').hidden = !!devices.length;
+  $('#gadgetList').innerHTML = devices.map((d) => {
+    const tone = d.blocked ? 'bad' : d.pending ? 'warn' : d.online ? 'good' : '';
+    const label = d.blocked ? T('blocked|đã chặn') : d.pending ? T('waiting|chờ duyệt') : d.online ? (d.via === 'lan' ? 'LAN' : 'relay') : T('offline|ngoại tuyến');
+    return `<div class="gadget ui-list-item" data-mac="${d.mac}" style="cursor:pointer">${DOU(d.online ? '#7ee0c3' : '#8a85a0')}
+      <div><b>${esc(d.name || 'Dou')}</b> <span class="ui-badge ${tone}">${label}</span><div class="muted">${esc(d.board || d.device || '')} · <span class="mono">${esc(d.mac)}</span>${d.fwVersion ? ' · ' + esc(d.fwVersion) : ''}</div>
+      <div class="muted">${d.lastHeard ? '“' + esc(d.lastHeard) + '” · ' : ''}${ago(d.lastSeen || d.firstSeen)}</div></div>
+      <span class="muted">${esc(d.agent || S.status?.settings?.agent || 'main')}</span></div>`;
+  }).join('');
+  document.querySelectorAll('[data-mac]').forEach((el) => (el.onclick = () => edit(el.dataset.mac)));
+  document.querySelectorAll('[data-allow]').forEach((b) => (b.onclick = () => aicw.call('updateDevice', { mac: b.dataset.allow, pending: false, blocked: false }).then(refresh).catch(fail('allow'))));
+  document.querySelectorAll('[data-deny]').forEach((b) => (b.onclick = () => aicw.call('updateDevice', { mac: b.dataset.deny, pending: false, blocked: true }).then(refresh).catch(fail('deny'))));
+  fillGadgetSelect();
+}
+function edit(mac) {
+  const d = S.devices.find((x) => x.mac === mac); if (!d) return;
+  S.sel = mac;
+  $('#editCard').hidden = false;
+  $('#editTitle').textContent = (d.name || 'Dou') + ' · ' + mac;
+  $('#eName').value = d.name || '';
+  $('#eAgent').innerHTML = ['', ...S.agents].map((a) => `<option value="${esc(a)}">${a ? esc(a) : T('(default)|(mặc định)')}</option>`).join('');
+  $('#eAgent').value = d.agent || '';
+  $('#eLang').value = d.language || '';
+  $('#eVoice').value = d.voice || '';
+  $('#eBlock').textContent = d.blocked || d.pending ? T('Allow|Cho phép') : T('Block|Chặn');
+}
+$('#eSave').onclick = () => aicw.call('updateDevice', { mac: S.sel, name: $('#eName').value, agent: $('#eAgent').value, language: $('#eLang').value, voice: $('#eVoice').value }).then(refresh).catch(fail('save'));
+$('#eBlock').onclick = () => { const d = S.devices.find((x) => x.mac === S.sel); aicw.call('updateDevice', { mac: S.sel, blocked: !(d.blocked || d.pending), pending: false }).then(() => refresh().then(() => edit(S.sel))).catch(fail('block')); };
+$('#eRemove').onclick = () => { if (confirm(T('Forget this gadget?|Xoá gadget này?'))) aicw.call('removeDevice', { mac: S.sel }).then(() => { $('#editCard').hidden = true; refresh(); }).catch(fail('remove')); };
+$('#eChat').onclick = () => { $('#chGadget').value = S.sel; show('channels'); };
+$('#bReload').onclick = () => refresh();
+
+// ---------- install ----------
+async function scan() {
+  $('#port').innerHTML = `<option>${T('Scanning…|Đang dò…')}</option>`;
+  try {
+    const { ports } = await aicw.call('usbPorts', {});
+    S.ports = ports;
+    $('#port').innerHTML = ports.length ? ports.map((p) => `<option value="${esc(p.path)}">${esc(p.path)}${p.maker ? ' — ' + esc(p.maker) : ''}</option>`).join('') : `<option value="">${T('No board found|Không thấy bo mạch')}</option>`;
+    onPort();
+  } catch (e) { $('#port').innerHTML = `<option value="">${esc(e.message)}</option>`; }
+}
+function onPort() {
+  const p = S.ports.find((x) => x.path === $('#port').value);
+  $('#s1').classList.toggle('done', !!p); $('#s2').classList.toggle('active', !!p);
+  $('#portInfo').innerHTML = p ? `USB ${esc(p.usb || '?')}${p.serial ? ' · <span class="mono">' + esc(p.serial) + '</span>' : ''}` : '';
+  if (p && p.boards?.length === 1) $('#board').value = p.boards[0];
+  onBoard();
+}
+$('#port').onchange = onPort;
+$('#bScan').onclick = scan;
+async function loadBoards() {
+  const r = await aicw.call('boards', {});
+  S.boards = r.boards;
+  const lab = { ready: T('tested|đã thử'), build: T('builds|có bản build'), port: T('not ready yet|chưa sẵn sàng') };
+  $('#board').innerHTML = r.boards.map((b) => `<option value="${b.id}">${esc(b.name)} — ${lab[b.aicw] || b.aicw}${b.available ? '' : ' · ' + T('no release|chưa phát hành')}</option>`).join('');
+  $('#kFw').textContent = r.release ? r.release.tag : T('None yet|Chưa có');
+  $('#kFwSub').textContent = r.release ? ago(Date.parse(r.release.publishedAt)) : r.error ? r.error : T('no release published|chưa phát hành bản nào');
+  const st = aicw.getState() || {};
+  if (st.board) $('#board').value = st.board; else $('#board').value = 'm5stack-sticks3';
+  onBoard();
+}
+function onBoard() {
+  const b = S.boards.find((x) => x.id === $('#board').value);
+  if (!b) return;
+  aicw.setState({ ...(aicw.getState() || {}), board: b.id });
+  const txt = { ready: T('Tested with AICW end to end.|Đã chạy thử với AICW từ đầu tới cuối.'), build: T('Builds with AICW; not tested on hardware yet.|Build được với AICW; chưa thử trên phần cứng.'), port: T('This board does not have the AICW voice link yet.|Bo mạch này chưa có kết nối giọng nói AICW.') };
+  $('#boardInfo').textContent = `${b.chip} · ${txt[b.aicw] || ''}`;
+  $('#bFlash').disabled = !$('#port').value || !b.available || b.aicw === 'port';
+}
+$('#board').onchange = onBoard;
+$('#bFlash').onclick = async () => {
+  const port = $('#port').value, board = $('#board').value;
+  if (!confirm(T('Flashing replaces the firmware on this board. Continue?|Nạp sẽ thay firmware đang có trên bo mạch. Tiếp tục?'))) return;
+  $('#flashBar').hidden = false; $('#bFlash').disabled = true;
+  try {
+    const r = await aicw.jobs.run('flashGadget', { port, board }, { onProgress: (j) => { $('#flashBar span').style.width = Math.round((j.progress || 0) * 100) + '%'; $('#flashNote').textContent = j.note || ''; } });
+    $('#flashNote').textContent = `${T('Done|Xong')}: ${r.version} · ${r.chip || ''}`;
+    $('#s2').classList.add('done'); $('#s3').classList.add('active');
+    refresh();
+  } catch (e) { $('#flashNote').textContent = T('Failed|Lỗi') + ': ' + e.message; }
+  finally { $('#bFlash').disabled = false; }
+};
+$('#bReboot').onclick = () => aicw.call('rebootGadget', { port: $('#port').value }).then(() => ($('#flashNote').textContent = T('Restarted|Đã khởi động lại'))).catch(fail('reboot'));
+$('#bSetup').onclick = async () => {
+  $('#setupOut').textContent = T('Sending…|Đang gửi…');
+  const st = S.status;
+  const host = $('#via').value === 'lan' ? `${(st.lanAddresses || [])[0]}:${st.settings.lanPort}` : undefined;
+  try {
+    const r = await aicw.call('setupGadget', { port: $('#port').value, ssid: $('#ssid').value || undefined, password: $('#pass').value || undefined, host });
+    $('#pass').value = '';
+    const s = r.status || {};
+    $('#setupOut').innerHTML = `Wi-Fi: <b>${s.wifi ? T('connected|đã nối') : T('not yet|chưa nối')}</b> · AICW: <b>${esc(s.detail || s.state || '?')}</b>`;
+    if (s.state === 'Connected') { $('#s3').classList.add('done'); }
+    refresh();
+  } catch (e) { $('#setupOut').textContent = e.message; }
+};
+$('#bStatus').onclick = () => aicw.call('gadgetStatus', { port: $('#port').value }).then((r) => { $('#setupOut').innerHTML = r.gadget ? `Wi-Fi: <b>${r.gadget.wifi ? T('connected|đã nối') : T('not yet|chưa nối')}</b> · <span class="mono">${esc(r.gadget.host)}</span> · <b>${esc(r.gadget.detail || r.gadget.state)}</b>` : T('This board does not run AICW Gadgets yet (or is still starting).|Bo mạch chưa chạy AICW Gadgets (hoặc đang khởi động).'); }).catch(fail('status'));
+$('#bLog').onclick = () => { $('#logOut').hidden = false; $('#logOut').textContent = T('Reading…|Đang đọc…'); aicw.call('gadgetLog', { port: $('#port').value, seconds: 6 }).then((r) => ($('#logOut').textContent = r.text || T('(nothing)|(không có gì)'))).catch(fail('log')); };
+
+// ---------- channels ----------
+function fillGadgetSelect() {
+  const cur = $('#chGadget').value || (aicw.getState() || {}).chat;
+  $('#chGadget').innerHTML = S.devices.filter((d) => !d.pending).map((d) => `<option value="${d.mac}">${esc(d.name || 'Dou')} · ${d.mac}</option>`).join('') || `<option value="">${T('No gadget|Chưa có gadget')}</option>`;
+  if (cur && S.devices.some((d) => d.mac === cur)) $('#chGadget').value = cur;
+}
+async function loadChat() {
+  const mac = $('#chGadget').value; if (!mac) { $('#chat').innerHTML = ''; return; }
+  aicw.setState({ ...(aicw.getState() || {}), chat: mac });
+  $('#chat').innerHTML = `<div class="muted">${T('Loading…|Đang tải…')}</div>`;
+  try {
+    const r = await aicw.call('channelHistory', { mac, limit: 40 });
+    $('#chKey').textContent = r.sessionKey;
+    $('#chat').innerHTML = r.messages.length ? r.messages.map((m) => `<div class="msg ${m.role}">${esc(m.text)}</div>`).join('') : `<div class="ui-empty">${T('No conversation yet. Hold the button on the gadget and talk.|Chưa có cuộc trò chuyện. Giữ nút trên gadget và nói.')}</div>`;
+    $('#chat').scrollTop = 1e9;
+  } catch (e) { $('#chat').innerHTML = `<div class="ui-alert">${esc(e.message)}</div>`; }
+}
+$('#chGadget').onchange = loadChat;
+$('#chReload').onclick = loadChat;
+$('#chSend').onclick = async () => {
+  const text = $('#chText').value.trim(), mac = $('#chGadget').value; if (!text || !mac) return;
+  const d = S.devices.find((x) => x.mac === mac) || {};
+  $('#chText').value = '';
+  $('#chat').insertAdjacentHTML('beforeend', `<div class="msg user">${esc(text)}</div><div class="msg assistant muted" id="typing">…</div>`);
+  try { await aicw.call('probeAgent', { text, mac, agent: d.agent || S.status?.settings?.agent || 'main' }); } catch (e) { fail('send')(e); }
+  loadChat();
+};
+$('#chText').onkeydown = (e) => { if (e.key === 'Enter') $('#chSend').click(); };
+
+// ---------- settings ----------
+function fillSettings(s) {
+  if (document.activeElement && document.activeElement.closest('[data-pane="settings"]')) return;
+  $('#sAgent').innerHTML = S.agents.map((a) => `<option>${esc(a)}</option>`).join('');
+  $('#sAgent').value = s.agent; $('#sLang').value = s.language || 'vi'; $('#sPort').value = s.lanPort; $('#sVoice').value = s.voice || '';
+  $('#sRelay').checked = !!s.relay; $('#sLan').checked = !!s.lan; $('#sOpen').checked = !!s.open;
+}
+$('#sSave').onclick = () => aicw.call('updateSettings', {
+  agent: $('#sAgent').value, language: $('#sLang').value, lanPort: Number($('#sPort').value) || 8765, voice: $('#sVoice').value,
+  relay: $('#sRelay').checked, lan: $('#sLan').checked, open: $('#sOpen').checked,
+  sttEngine: window.AicwApp ? AicwApp.speechEngine('stt') : 'auto', ttsEngine: window.AicwApp ? AicwApp.speechEngine('tts') : 'auto',
+}).then(() => { $('#sOut').textContent = T('Saved. The bridge restarts in a few seconds.|Đã lưu. Cầu nối sẽ khởi động lại sau vài giây.'); setTimeout(loadStatus, 6000); }).catch(fail('settings'));
+
+// ---------- start ----------
+async function refresh() { await Promise.all([loadStatus().catch(fail('status')), loadDevices().catch(fail('devices'))]); }
+aicw.on('event:devices', () => loadDevices().catch(() => {}));
+aicw.on('event:bridge', () => loadStatus().catch(() => {}));
+aicw.on('visible', refresh);
+translate();
+show((aicw.getState() || {}).view || 'home');
+refresh();
+loadBoards().catch(fail('boards'));
+aicw.call('agents', {}).then((r) => { if (r?.agents?.length) { S.agents = r.agents; if (S.status) fillSettings(S.status.settings); } }).catch(() => {});
+setInterval(() => { if (aicw.visible !== false) loadStatus().catch(() => {}); }, 15000);
 </script>
+</body>
+</html>
