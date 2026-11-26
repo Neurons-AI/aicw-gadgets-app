@@ -227,5 +227,14 @@
     "command": "bridge",
     "args": {},
     "expect": {}
+  },
+  {
+    "command": "sendWifi",
+    "args": {
+      "mac": "000000000000",
+      "ssid": "Home",
+      "password": "12345678"
+    },
+    "fails": true
   }
 ]

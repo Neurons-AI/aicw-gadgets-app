@@ -471,6 +471,32 @@
   </div>
 </div>
 
+<dialog id="dlgEdit">
+  <h3 id="eTitle"></h3>
+  <div class="fields">
+    <label><span data-t="Name|Tên gadget"></span><input class="ui-input" id="eName" maxlength="40"></label>
+    <label><span data-t="Talks to|Trò chuyện với"></span><select class="ui-select" id="eAgent"></select></label>
+  </div>
+  <div class="actions"><button class="btn primary" id="eSave" data-t="Save|Lưu"></button><button class="btn" id="eCancel" data-t="Close|Đóng"></button></div>
+  <hr style="border:0;border-top:1px solid var(--ui-border);margin:18px 0">
+  <h4 style="margin:0 0 4px" data-t="Change Wi-Fi|Đổi mạng Wi-Fi"></h4>
+  <p class="muted small" id="eWifiNow"></p>
+  <div id="eRemote">
+    <p class="small" data-t="The gadget is online: send it the new network now. If it cannot join, it goes back to the network it has.|Gadget đang kết nối: gửi mạng mới tới gadget ngay. Nếu không vào được mạng mới, gadget tự quay về mạng đang dùng."></p>
+    <div class="fields">
+      <label><span data-t="Wi-Fi name (2.4 GHz)|Tên Wi-Fi (2.4 GHz)"></span><input class="ui-input" id="eSsid" maxlength="32" autocomplete="off" spellcheck="false"></label>
+      <label><span data-t="Password|Mật khẩu"></span><span style="display:flex;gap:6px;align-items:center"><input class="ui-input masked" id="ePass" type="text" maxlength="64" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1"><button type="button" class="btn ghost sm" id="ePassEye" style="padding:6px 10px">👁</button></span></label>
+    </div>
+    <div class="err" id="eErr"></div>
+    <div id="eWifiState" class="small" style="margin:6px 0"></div>
+    <div class="actions"><button class="btn primary" id="eSend" data-t="Send to gadget|Gửi tới gadget"></button></div>
+  </div>
+  <div id="eBle" style="margin-top:12px">
+    <p class="small muted" id="eBleText"></p>
+    <button class="btn" id="eBleBtn" data-t="Set up again over Bluetooth|Cài lại qua Bluetooth"></button>
+  </div>
+</dialog>
+
 <dialog id="dlgServer">
   <h3 data-t="Connect to an AI computer|Nối với máy chủ AI"></h3>
   <p class="muted small" data-t="On the AI computer open AICW Gadgets → Settings → Copy code, then paste it here. This computer then only sets gadgets up.|Trên máy chủ AI mở AICW Gadgets → Cài đặt → Sao chép mã, rồi dán vào đây. Sau đó máy này chỉ dùng để cài gadget."></p>
@@ -551,13 +577,69 @@ async function loadDevices() {
   }));
   bindAdd();
 }
-async function editGadget(mac) {
-  const d = S.devices.find((x) => x.mac === mac) || {};
-  const name = prompt(T('Name|Tên gadget'), d.name || 'Dou');
-  if (name === null) return;
-  await aicw.call('updateDevice', { mac, name });
-  loadDevices();
+let EDIT = null;
+function editGadget(mac) {
+  const d = S.devices.find((x) => x.mac === mac); if (!d) return;
+  EDIT = mac;
+  const def = (S.remote ? S.remoteAgent : null) || S.status?.settings?.agent || 'main';
+  $('#eTitle').textContent = T('Edit|Sửa') + ' ' + (d.name || 'Dou');
+  $('#eName').value = d.name || 'Dou';
+  $('#eAgent').innerHTML = S.agents.map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+  $('#eAgent').value = d.agent || def;
+  $('#eErr').textContent = ''; $('#ePass').value = ''; $('#eSsid').value = '';
+  renderEditWifi(d);
+  $('#dlgEdit').showModal();
 }
+function renderEditWifi(d) {
+  $('#eWifiNow').textContent = d.ssid ? T(`Now on: ${d.ssid}|Đang dùng mạng: ${d.ssid}`) : '';
+  const remote = !!d.online && !!d.canSetWifi;
+  $('#eRemote').hidden = !remote;
+  $('#eBleText').textContent = remote
+    ? T('Or, when the gadget cannot reach any network (you moved to a new place): on the gadget open the menu → Reset pairing, then set it up again here.|Hoặc khi gadget không còn vào được mạng nào (mang sang chỗ mới): trên gadget mở menu → Reset pairing, rồi cài lại ở đây.')
+    : !d.online
+      ? T('The gadget is offline, so it cannot get a new network from here. On the gadget open the menu → Reset pairing, then press the button below.|Gadget đang mất kết nối nên không gửi Wi-Fi từ xa được. Trên gadget mở menu → Reset pairing, rồi bấm nút dưới đây.')
+      : T('This gadget has older firmware that only takes Wi-Fi over Bluetooth. On the gadget open the menu → Reset pairing, then press the button below.|Firmware trên gadget này chỉ nhận Wi-Fi qua Bluetooth. Trên gadget mở menu → Reset pairing, rồi bấm nút dưới đây.');
+  const w = d.wifiChange, st = $('#eWifiState');
+  const map = {
+    queued: ['', T(`Sending “${w?.ssid}”…|Đang gửi “${w?.ssid}”…`)],
+    sent: ['', T(`Sent “${w?.ssid}”. The gadget is switching…|Đã gửi “${w?.ssid}”. Gadget đang chuyển mạng…`)],
+    saved: ['', T(`The gadget saved “${w?.ssid}” and is switching…|Gadget đã lưu “${w?.ssid}”, đang chuyển mạng…`)],
+    ok: ['good', T(`✓ The gadget is now on “${w?.ssid}”.|✓ Gadget đã vào mạng “${w?.ssid}”.`)],
+    fell_back: ['bad', T(`Could not join “${w?.ssid}” (wrong password, or not in range). The gadget went back to “${d.ssid}”. It will also try “${w?.ssid}” by itself when it is there.|Không vào được “${w?.ssid}” (sai mật khẩu hoặc ngoài vùng phủ sóng). Gadget đã quay về mạng “${d.ssid}”. Khi ở gần “${w?.ssid}” gadget cũng tự thử lại.`)],
+    rejected: ['bad', T('The gadget refused that name or password. Check and send again.|Gadget từ chối tên hoặc mật khẩu này. Kiểm tra lại rồi gửi lại.')],
+    expired: ['bad', T('The gadget did not come online in time; nothing was sent.|Gadget không kết nối kịp nên chưa gửi được.')],
+  };
+  const m = w && Date.now() - w.at < 15 * 60_000 ? map[w.state] : null;
+  st.style.color = m?.[0] === 'good' ? 'var(--ui-good)' : m?.[0] === 'bad' ? 'var(--ui-bad)' : '';
+  st.textContent = m ? m[1] : '';
+}
+$('#eCancel').onclick = () => { EDIT = null; $('#dlgEdit').close(); };
+$('#ePassEye').onclick = () => $('#ePass').classList.toggle('masked');
+$('#eSave').onclick = async () => {
+  try { await aicw.call('updateDevice', { mac: EDIT, name: $('#eName').value.trim() || 'Dou', agent: $('#eAgent').value }); toast(T('Saved|Đã lưu'), 'good'); EDIT = null; $('#dlgEdit').close(); loadDevices(); }
+  catch (e) { $('#eErr').textContent = e.message; }
+};
+$('#eSend').onclick = async () => {
+  const ssid = $('#eSsid').value.trim(), password = $('#ePass').value;
+  if (!ssid) { $('#eErr').textContent = T('Type the Wi-Fi name.|Nhập tên Wi-Fi.'); return; }
+  if (password && password.length < 8) { $('#eErr').textContent = T('Wi-Fi passwords have at least 8 characters.|Mật khẩu Wi-Fi có ít nhất 8 ký tự.'); return; }
+  $('#eErr').textContent = ''; $('#eSend').disabled = true;
+  try {
+    await aicw.call('sendWifi', { mac: EDIT, ssid, password });
+    $('#ePass').value = '';
+    const mac = EDIT;
+    // Follow the change until the gadget is back (or two minutes pass).
+    for (let i = 0; i < 40 && EDIT === mac; i++) {
+      await loadDevices().catch(() => {});
+      const d = S.devices.find((x) => x.mac === mac);
+      if (d) renderEditWifi(d);
+      if (d?.wifiChange && ['ok', 'fell_back', 'rejected', 'expired'].includes(d.wifiChange.state)) break;
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  } catch (e) { $('#eErr').textContent = e.message; }
+  $('#eSend').disabled = false;
+};
+$('#eBleBtn').onclick = () => { EDIT = null; $('#dlgEdit').close(); openWizard(); };
 function bindAdd() { document.querySelectorAll('[data-add]').forEach((b) => (b.onclick = openWizard)); }
 
 // ---------- add-a-gadget wizard ----------

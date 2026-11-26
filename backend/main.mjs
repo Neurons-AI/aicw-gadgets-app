@@ -158,6 +158,39 @@ async function askAgent(ctx, agent, mac, text) {
   return String(d.reply ?? '');
 }
 
+// ---------- Wi-Fi change over the live link ----------
+// The page asks; the bridge (which holds the gadget connections) sends it on its next beat.
+// The password waits in the store only until it is sent (at most 10 minutes).
+async function queueWifi(ctx, mac, ssid, password) {
+  ssid = String(ssid || '').trim(); password = String(password || '');
+  if (!ssid || Buffer.byteLength(ssid) > 32) throw new Error('Tên Wi-Fi không hợp lệ');
+  if (password && (password.length < 8 || password.length > 64)) throw new Error('Mật khẩu Wi-Fi phải từ 8 đến 64 ký tự');
+  const d = (await devices(ctx))[mac];
+  if (!d) throw new Error('không có gadget này');
+  if (!d.online) throw new Error('Gadget đang không kết nối. Cài lại qua Bluetooth: trên gadget chọn Reset pairing.');
+  if (!d.canSetWifi) throw new Error('Firmware trên gadget này chưa nhận được Wi-Fi từ xa. Cập nhật firmware qua USB hoặc cài lại qua Bluetooth.');
+  const q = (await ctx.store.get('wifiQueue')) || {}; // aicw:shared
+  q[mac] = { ssid, password, at: Date.now() };
+  await ctx.store.set('wifiQueue', q); // aicw:shared
+  await editDevices(ctx, (all) => { if (all[mac]) all[mac] = { ...all[mac], wifiChange: { ssid, state: 'queued', at: Date.now() } }; });
+  return { queued: true };
+}
+async function deliverWifi(ctx, live) {
+  const q = (await ctx.store.get('wifiQueue')) || {}; // aicw:shared
+  const keys = Object.keys(q);
+  if (!keys.length) return;
+  for (const mac of keys) {
+    const it = q[mac], g = live.get(mac);
+    if (Date.now() - it.at > 600_000) { delete q[mac]; await editDevices(ctx, (d) => { if (d[mac]) d[mac] = { ...d[mac], wifiChange: { ssid: it.ssid, state: 'expired', at: Date.now() } }; }); continue; }
+    if (!g?.send) continue;
+    g.send({ type: 'set_wifi', ssid: it.ssid, password: it.password });
+    delete q[mac];
+    await editDevices(ctx, (d) => { if (d[mac]) d[mac] = { ...d[mac], wifiChange: { ssid: it.ssid, state: 'sent', at: Date.now() } }; });
+    ctx.log.info('wifi change sent to ' + mac);
+  }
+  await ctx.store.set('wifiQueue', q); // aicw:shared
+}
+
 // ---------- one gadget connection (relay or LAN), speaking PROTOCOL.md ----------
 function serveGadget(ctx, ch, via, live) {
   const st = { mac: '', name: '', turn: null, pcm: [], task: null, allowed: false };
@@ -242,6 +275,7 @@ function serveGadget(ctx, ch, via, live) {
           if (j.agent !== undefined) cur.agent = String(j.agent).slice(0, 64) || undefined;
           d[k] = cur;
         });
+        else if (j.op === 'wifi') { try { await queueWifi(ctx, k, j.ssid, j.password); } catch (e) { send({ type: 'setup_error', text: e.message }); ch.close(); return; } }
         else if (j.op === 'history') extra = await commands.channelHistory({ mac: k, limit: j.limit || 40 }, ctx).catch((e) => ({ messages: [], error: e.message }));
       }
       const agents = await commands.agents({}, ctx).then((r) => r.agents).catch(() => []);
@@ -273,7 +307,10 @@ function serveGadget(ctx, ch, via, live) {
           devs[st.mac] = { name: 'Dou ' + st.mac.slice(-4).toUpperCase(), firstSeen: Date.now(), ...dev, mac: st.mac, pending: true, device: j.device, fw: j.fw, lastSeen: Date.now() };
           return 'pending';
         }
-        devs[st.mac] = { name: 'Dou ' + st.mac.slice(-4).toUpperCase(), firstSeen: Date.now(), ...dev, mac: st.mac, pending: false, device: j.device, fw: j.fw, via, online: true, lastSeen: Date.now() };
+        const wc = dev?.wifiChange;
+        let wifiChange = wc;
+        if (wc && (wc.state === 'saved' || wc.state === 'sent') && j.ssid) wifiChange = { ...wc, state: j.ssid === wc.ssid ? 'ok' : 'fell_back', at: Date.now() };
+        devs[st.mac] = { name: 'Dou ' + st.mac.slice(-4).toUpperCase(), firstSeen: Date.now(), ...dev, mac: st.mac, pending: false, device: j.device, fw: j.fw, ssid: j.ssid || dev?.ssid, canSetWifi: !!j.set_wifi, wifiChange, via, online: true, lastSeen: Date.now() };
         st.name = devs[st.mac].name;
         return isNew ? 'new' : 'ok';
       });
@@ -285,12 +322,16 @@ function serveGadget(ctx, ch, via, live) {
       }
       if (verdict === 'new') ctx.host.notify({ title: 'Đã thêm gadget mới', body: `${st.name} vừa kết nối và sẵn sàng trò chuyện.` }).catch(() => {});
       st.allowed = true;
-      live.set(st.mac, { via, since: Date.now() });
+      live.set(st.mac, { via, since: Date.now(), send });
       send({ type: 'ready', name: st.name });
       return;
     }
     if (!st.allowed) return;
     if (j.type === 'ping') { send({ type: 'pong' }); return; }
+    if (j.type === 'wifi_saved' || j.type === 'wifi_rejected') {
+      await editDevices(ctx, (d) => { if (d[st.mac]) d[st.mac] = { ...d[st.mac], wifiChange: { ssid: j.ssid || d[st.mac].wifiChange?.ssid, state: j.type === 'wifi_saved' ? 'saved' : 'rejected', reason: j.reason, at: Date.now() } }; });
+      return;
+    }
     if (j.type === 'turn_begin') { st.turn = j.id; st.pcm = []; return; }
     if (j.type === 'turn_end' && j.id === st.turn) { const pcm = Buffer.concat(st.pcm); st.pcm = []; runTurn(j.id, { pcm }); return; }
     if (j.type === 'text_turn') { st.turn = j.id; runTurn(j.id, { text: j.text || '' }); return; }
@@ -524,6 +565,17 @@ export const commands = {
     });
   },
 
+  async sendWifi({ mac, ssid, password }, ctx) {
+    ownerOnly(ctx);
+    const k = normMac(mac);
+    if (!(await targetHost(ctx)).self) {
+      const r = await askTarget(ctx, { type: 'setup_op', op: 'wifi', mac: k, ssid, password });
+      if (r?.type === 'setup_error') throw new Error(r.text);
+      return { queued: true };
+    }
+    return queueWifi(ctx, k, ssid, password);
+  },
+
   async removeDevice({ mac }, ctx) {
     ownerOnly(ctx);
     const k = normMac(mac);
@@ -735,9 +787,16 @@ export const commands = {
         ? runHost(idn, { signal: ac.signal, log, onGuest: onChannel('relay'), onStatus: (x) => { relay = x.relay; void beat(); } })
         : Promise.resolve();
       while (!ac.signal.aborted) {
+        await deliverWifi(ctx, live).catch((e) => log('wifi: ' + (e?.message || e)));
         await beat();
         ctx.job?.progress(0, `relay ${relay} · LAN ${lan} · ${live.size} online`);
-        await new Promise((r) => { const t = setTimeout(r, 10000); ac.signal.addEventListener('abort', () => { clearTimeout(t); r(); }, { once: true }); });
+        await new Promise((r) => {
+          // Wakes early when the page queued a Wi-Fi change, so it goes out within ~2 s.
+          const done = () => { clearTimeout(t); clearInterval(q); r(); };
+          const t = setTimeout(done, 10000);
+          const q = setInterval(async () => { if (Object.keys((await ctx.store.get('wifiQueue')) || {}).length) done(); }, 1500); // aicw:shared
+          ac.signal.addEventListener('abort', done, { once: true });
+        });
         if (ac.signal.aborted) break;
         const stop = (await ctx.store.get('stopBridge')) || 0; // aicw:shared
         const restart = (await ctx.store.get('restartBridge')) || 0; // aicw:shared
