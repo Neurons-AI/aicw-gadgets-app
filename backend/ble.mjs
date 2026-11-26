@@ -77,7 +77,8 @@ async function setupOnce(me, id, { ssid, password, host }, onStep, retry) {
   catch (e) {
     if (!/already connected/i.test(String(e?.message))) throw e;
     await p.disconnectAsync().catch(() => {}); await new Promise((r) => setTimeout(r, 800));
-    await p.connectAsync();
+    // Still linked after the disconnect: the link is open and usable, so keep it.
+    await p.connectAsync().catch((e2) => { if (!/already connected/i.test(String(e2?.message))) throw e2; });
   }
   const done = { closed: false };
   p.once('disconnect', () => { done.closed = true; });
