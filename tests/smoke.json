@@ -38,5 +38,194 @@
         "agent": "main"
       }
     }
+  },
+  {
+    "command": "boards",
+    "args": {},
+    "expect": {}
+  },
+  {
+    "command": "agents",
+    "args": {},
+    "expect": {}
+  },
+  {
+    "command": "setupLinks",
+    "args": {},
+    "expect": {}
+  },
+  {
+    "command": "connectCode",
+    "args": {},
+    "expect": {}
+  },
+  {
+    "command": "usbPorts",
+    "args": {},
+    "expect": {}
+  },
+  {
+    "command": "channelHistory",
+    "args": {
+      "mac": "000000000000",
+      "limit": 5
+    },
+    "expect": {},
+    "mock": {
+      "host.tool": {
+        "messages": [],
+        "ok": true,
+        "text": "ok"
+      }
+    }
+  },
+  {
+    "command": "updateDevice",
+    "args": {
+      "mac": "000000000000",
+      "name": "Test"
+    },
+    "fails": true
+  },
+  {
+    "command": "removeDevice",
+    "args": {
+      "mac": "000000000000"
+    },
+    "expect": {}
+  },
+  {
+    "command": "removeSetupLink",
+    "args": {
+      "id": "nope"
+    },
+    "expect": {}
+  },
+  {
+    "command": "setTarget",
+    "args": {
+      "code": "not a code"
+    },
+    "fails": true
+  },
+  {
+    "command": "bleAnswer",
+    "args": {
+      "job": "nope",
+      "ssid": "x",
+      "password": "y"
+    },
+    "fails": true
+  },
+  {
+    "command": "gadgetStatus",
+    "args": {
+      "port": "/dev/nonexistent-port"
+    },
+    "fails": true
+  },
+  {
+    "command": "rebootGadget",
+    "args": {
+      "port": "/dev/nonexistent-port"
+    },
+    "fails": true
+  },
+  {
+    "command": "gadgetLog",
+    "args": {
+      "port": "/dev/nonexistent-port"
+    },
+    "fails": true
+  },
+  {
+    "command": "setupGadget",
+    "args": {
+      "port": "/dev/nonexistent-port"
+    },
+    "fails": true
+  },
+  {
+    "command": "flashGadget",
+    "args": {
+      "port": "/dev/nonexistent-port",
+      "board": "nope"
+    },
+    "fails": true
+  },
+  {
+    "command": "probeAgent",
+    "args": {
+      "agent": "main"
+    },
+    "expect": {},
+    "mock": {
+      "host.tool": {
+        "messages": [],
+        "ok": true,
+        "text": "ok"
+      }
+    }
+  },
+  {
+    "command": "stopBridge",
+    "args": {},
+    "expect": {}
+  },
+  {
+    "command": "arm",
+    "args": {},
+    "expect": {},
+    "mock": {
+      "triggers.arm": {
+        "ok": true
+      }
+    }
+  },
+  {
+    "command": "startBridge",
+    "args": {},
+    "expect": {
+      "enabled": true
+    }
+  },
+  {
+    "command": "restartBridge",
+    "args": {},
+    "expect": {
+      "restarting": true
+    }
+  },
+  {
+    "command": "rotateCode",
+    "args": {},
+    "expect": {}
+  },
+  {
+    "command": "bleSetup",
+    "args": {
+      "id": "nope",
+      "ssid": "x",
+      "password": "y",
+      "code": "not a code"
+    },
+    "fails": true
+  },
+  {
+    "command": "bleScan",
+    "args": {
+      "seconds": 2
+    },
+    "expect": {}
+  },
+  {
+    "command": "stopBridge",
+    "args": {},
+    "expect": {}
+  },
+  {
+    "command": "bridge",
+    "args": {},
+    "expect": {}
   }
 ]
