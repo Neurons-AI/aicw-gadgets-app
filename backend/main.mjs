@@ -15,14 +15,18 @@ import * as ble from './ble.mjs';
 const serial = () => import('./serial.mjs'); // native module: loaded only by the USB commands
 
 const SKILL = String(process.env.AICW_APP_SKILL || process.env.AICW_SKILL || 'aicw-gadgets-dev').toLowerCase();
-const DEFAULTS = { enabled: true, agent: 'main', lan: true, lanPort: 8765, relay: true, open: false, language: 'vi', sttEngine: 'auto', ttsEngine: 'auto' };
+const DEFAULTS = { enabled: true, agent: 'main', lan: true, lanPort: 8765, relay: true, open: true, language: 'vi', sttEngine: 'auto', ttsEngine: 'auto' };
 const PERSONA = (name) =>
   `[Gadget "${name}" — a push-to-talk voice device. The person speaks; your answer is read aloud on a ` +
   `tiny speaker. Answer in 1-3 short spoken sentences, no markdown, no lists, no links, no emoji.]\n`;
 
 // ---------- settings & devices (one install = one owner's gadgets: shared on purpose) ----------
 async function settings(ctx) {
-  return { ...DEFAULTS, ...((await ctx.store.get('settings')) || {}) }; // aicw:shared
+  const saved = (await ctx.store.get('settings')) || {}; // aicw:shared
+  // Older versions saved open:false as their default: from v0.1.17 new gadgets are accepted
+  // unless the owner turns it off again (marked by openSetByOwner).
+  if (saved.open === false && !saved.openSetByOwner) delete saved.open;
+  return { ...DEFAULTS, ...saved };
 }
 async function devices(ctx) {
   return (await ctx.store.get('devices')) || {}; // aicw:shared
@@ -167,11 +171,21 @@ function serveGadget(ctx, ch, via, live) {
         // A gadget only knows this host's address because someone set it up with this
         // computer's connect code: that setup is the consent, so it is accepted right away.
         const isNew = !dev || dev.pending;
+        if (isNew && !s.open) {
+          // The owner turned auto-accept off: list it and wait for Allow in the app.
+          devs[st.mac] = { name: 'Dou ' + st.mac.slice(-4).toUpperCase(), firstSeen: Date.now(), ...dev, mac: st.mac, pending: true, device: j.device, fw: j.fw, lastSeen: Date.now() };
+          return 'pending';
+        }
         devs[st.mac] = { name: 'Dou ' + st.mac.slice(-4).toUpperCase(), firstSeen: Date.now(), ...dev, mac: st.mac, pending: false, device: j.device, fw: j.fw, via, online: true, lastSeen: Date.now() };
         st.name = devs[st.mac].name;
         return isNew ? 'new' : 'ok';
       });
       if (verdict === 'blocked') { send({ type: 'error', text: 'Thiết bị bị chặn' }); ch.close(); return; }
+      if (verdict === 'pending') {
+        send({ type: 'error', text: 'Chờ chủ máy cho phép' });
+        ctx.host.notify({ title: 'Gadget mới muốn kết nối', body: 'Mở AICW Gadgets để cho phép.' }).catch(() => {});
+        ch.close(); return;
+      }
       if (verdict === 'new') ctx.host.notify({ title: 'Đã thêm gadget mới', body: `${st.name} vừa kết nối và sẵn sàng trò chuyện.` }).catch(() => {});
       st.allowed = true;
       live.set(st.mac, { via, since: Date.now() });
@@ -360,6 +374,7 @@ export const commands = {
     ownerOnly(ctx);
     const s = { ...(await settings(ctx)) };
     for (const k of ['enabled', 'agent', 'lan', 'lanPort', 'relay', 'open', 'language', 'voice', 'sttEngine', 'ttsEngine']) if (patch[k] !== undefined) s[k] = patch[k];
+    if (patch.open !== undefined) s.openSetByOwner = true;
     s.lanPort = Math.max(1024, Math.min(65535, Number(s.lanPort) || 8765));
     await ctx.store.set('settings', s); // aicw:shared
     await ctx.store.set('restartBridge', Date.now()); // aicw:shared — the running bridge picks up the new settings

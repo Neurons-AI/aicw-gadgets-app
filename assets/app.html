@@ -190,10 +190,14 @@
     </div>
 
     <div class="sec">
+      <h3 data-t="New gadgets|Gadget mới"></h3>
+      <label class="sw" style="border-top:0;padding-top:4px"><input type="checkbox" id="sOpen"><div><b data-t="Accept new gadgets automatically|Tự động chấp nhận gadget mới"></b><span class="muted small" data-t="On: a gadget set up for this computer can talk right away. Off: you allow each new gadget here first.|Bật: gadget được cài cho máy này trò chuyện được ngay. Tắt: bạn phải cho phép từng gadget mới ở đây."></span></div></label>
+    </div>
+
+    <div class="sec">
       <details class="adv">
         <summary data-t="Advanced|Nâng cao"></summary>
         <div class="kv" id="advKv"></div>
-        <label class="sw"><input type="checkbox" id="sOpen"><div><b data-t="Accept new gadgets without asking|Nhận gadget lạ không cần hỏi"></b><span class="muted small" data-t="Leave off so a stranger's gadget cannot talk to your assistant.|Nên để tắt để gadget của người lạ không trò chuyện được với trợ lý của bạn."></span></div></label>
         <label class="sw"><input type="checkbox" id="sRelay"><div><b data-t="Reachable from anywhere|Kết nối từ mọi nơi"></b><span class="muted small" data-t="Through the AICW relay, end-to-end encrypted.|Qua relay AICW, mã hoá đầu-cuối."></span></div></label>
         <label class="sw"><input type="checkbox" id="sLan"><div><b data-t="Reachable on the same Wi-Fi|Kết nối trong cùng Wi-Fi"></b></div></label>
         <div class="row" style="margin-top:12px"><button class="btn" id="bRestart" data-t="Restart the connection|Khởi động lại kết nối"></button><button class="btn" id="bSaveAdv" data-t="Save|Lưu"></button></div>
@@ -557,7 +561,7 @@ async function loadStatus() {
   if (!document.activeElement?.closest('[data-pane="settings"]')) {
     $('#sAgent').innerHTML = S.agents.map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
     $('#sAgent').value = s.agent; $('#sLang').value = s.language || 'vi';
-    $('#sOpen').checked = !!s.open; $('#sRelay').checked = !!s.relay; $('#sLan').checked = !!s.lan;
+    $('#sOpen').checked = s.open !== false; $('#sRelay').checked = !!s.relay; $('#sLan').checked = !!s.lan;
   }
   const yes = T('working|đang chạy'), no = T('off|tắt');
   $('#advKv').innerHTML = [
@@ -586,7 +590,8 @@ $('#sSave').onclick = () => aicw.call('updateSettings', {
   agent: $('#sAgent').value, language: $('#sLang').value,
   sttEngine: window.AicwApp ? AicwApp.speechEngine('stt') : 'auto', ttsEngine: window.AicwApp ? AicwApp.speechEngine('tts') : 'auto',
 }).then(() => { $('#sOut').textContent = T('Saved|Đã lưu'); setTimeout(() => ($('#sOut').textContent = ''), 3000); loadDevices(); }).catch((e) => toast(e.message, 'bad'));
-$('#bSaveAdv').onclick = () => aicw.call('updateSettings', { open: $('#sOpen').checked, relay: $('#sRelay').checked, lan: $('#sLan').checked })
+$('#sOpen').onchange = () => aicw.call('updateSettings', { open: $('#sOpen').checked }).then(() => toast(T('Saved|Đã lưu'), 'good')).catch((e) => toast(e.message, 'bad'));
+$('#bSaveAdv').onclick = () => aicw.call('updateSettings', { relay: $('#sRelay').checked, lan: $('#sLan').checked })
   .then(() => toast(T('Saved|Đã lưu'), 'good')).catch((e) => toast(e.message, 'bad'));
 $('#bRestart').onclick = () => aicw.call('restartBridge', {}).then(() => toast(T('Restarting…|Đang khởi động lại…'))).catch((e) => toast(e.message, 'bad'));
 
