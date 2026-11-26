@@ -291,10 +291,11 @@ export const commands = {
     const r = await ble.setup(a.id, { ssid: a.ssid, password: a.password, host }, (st) => {
       steps.push(st.step);
       const pct = { connecting: 0.05, pairing_confirm_required: 0.15, pairing_confirmed: 0.35, wifi_scan: 0.4, wifi_connecting: 0.55, wifi_connected: 0.8, auth_ok: 1 }[st.step];
-      ctx.job?.progress(pct ?? 0.5, JSON.stringify({ step: st.step, text: st.text, networks: st.networks }));
+      // The note is capped at 400 chars: keep it small, the Wi-Fi list goes in data.
+      ctx.job?.progress(pct ?? 0.5, JSON.stringify({ step: st.step, text: String(st.text || '').slice(0, 120) }), st.networks ? { networks: st.networks.slice(0, 20) } : undefined);
     }, async (q) => {
       // Ask the page for the Wi-Fi again; it answers with bleAnswer (same job id).
-      ctx.job?.progress(0.5, JSON.stringify({ step: 'need_wifi', reason: q.reason, ssid: q.ssid || '', networks: q.networks }));
+      ctx.job?.progress(0.5, JSON.stringify({ step: 'need_wifi', reason: q.reason, ssid: String(q.ssid || '').slice(0, 40), at: Date.now() }), { networks: (q.networks || []).slice(0, 20) });
       const ans = await new Promise((resolve) => { bleAnswers.set(jobId, resolve); setTimeout(() => resolve(null), 120000); });
       bleAnswers.delete(jobId);
       return ans;

@@ -471,7 +471,9 @@ function friendly(m) {
 }
 function onSetupProgress(j) {
   let p = {}; try { p = JSON.parse(j.note || '{}'); } catch { return; }
-  if (p.networks) W.nets = p.networks;
+  if (j.data && j.data.networks) { W.nets = j.data.networks; p.networks = j.data.networks; }
+  if (p.step === 'need_wifi' && p.at && p.at === W.lastAsk) return; // same question, already shown
+  if (p.step === 'need_wifi') W.lastAsk = p.at;
   if (p.step === 'pairing_confirm_required') {
     $('#confirmText').textContent = T('Press the button on the gadget now|Bấm nút trên gadget ngay bây giờ');
     W.deadline = Date.now() + 60000;
