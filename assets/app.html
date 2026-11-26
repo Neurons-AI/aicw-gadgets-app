@@ -305,6 +305,7 @@ let S = { status: null, devices: [], agents: [{ id: 'main', name: 'main' }], tar
 
 // ---------- tabs ----------
 function show(v) {
+  if (!['home', 'chat', 'settings'].includes(v)) v = 'home';
   document.querySelectorAll('[data-pane]').forEach((p) => (p.hidden = p.dataset.pane !== v));
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
   aicw.setState({ ...(aicw.getState() || {}), view: v });
