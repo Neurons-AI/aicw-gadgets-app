@@ -196,7 +196,7 @@
     <div id="modeBle">
       <div class="card">
         <div class="row"><h3 class="grow" data-t="Gadgets waiting for setup|Gadget đang chờ cài đặt"></h3><button class="ui-btn sm" id="bBleScan" data-t="Search|Tìm"></button></div>
-        <p class="lead" data-t="Turn the gadget on and keep it close. A gadget that was set up before must be reset first (hold its button).|Bật gadget và để gần máy. Gadget đã cài trước đó phải đặt lại trước (giữ nút)."></p>
+        <p class="lead" data-t="Turn the gadget on and keep it close. A gadget that was set up before must be reset first: on the gadget open the menu, Reset pairing.|Bật gadget và để gần máy. Gadget đã cài trước đó phải đặt lại trước: trên gadget mở menu, chọn Reset pairing."></p>
         <div class="gl" id="bleList"><p class="muted" data-t="Press Search.|Bấm Tìm."></p></div>
       </div>
       <div class="card" id="bleWifi" hidden>
@@ -489,7 +489,7 @@ async function bleScan() {
   $('#bleList').innerHTML = `<p class="muted">${T('Searching for 6 seconds…|Đang tìm trong 6 giây…')}</p>`;
   try {
     const { gadgets } = await aicw.call('bleScan', { seconds: 6 });
-    if (!gadgets.length) { $('#bleList').innerHTML = `<p class="muted">${T('No gadget is waiting. Turn it on, keep it close; a gadget set up before must be reset first.|Không thấy gadget nào đang chờ. Bật gadget, để gần máy; gadget đã cài trước đó phải đặt lại trước.')}</p>`; return; }
+    if (!gadgets.length) { $('#bleList').innerHTML = `<p class="muted">${T('No gadget is waiting. Turn it on and keep it close. A gadget that is already set up does not show here: reset it from its menu (Reset pairing), or flash it over USB.|Không thấy gadget nào đang chờ. Bật gadget, để gần máy. Gadget đã cài rồi sẽ không hiện ở đây: đặt lại từ menu của gadget (Reset pairing), hoặc nạp lại qua USB.')}</p>`; return; }
     $('#bleList').innerHTML = gadgets.map((g) => `<button data-id="${esc(g.id)}"><span><b>${esc(g.name)}</b></span><span class="muted">${g.rssi > -60 ? T('close|ở gần') : g.rssi > -80 ? T('in range|trong tầm') : T('far|ở xa')} · ${g.rssi} dBm</span></button>`).join('');
     $('#bleList').querySelectorAll('button').forEach((b) => (b.onclick = () => {
       S.ble.pick = b.dataset.id;
