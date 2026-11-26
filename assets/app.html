@@ -116,6 +116,10 @@
   .sec h3 { margin: 0 0 4px; font-size: 16px; font-weight: 650; }
   .sec > p { margin: 0 0 14px; color: var(--ui-muted-fg); font-size: 14px; line-height: 1.5; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .pc { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--ui-border); border-radius: 14px; background: var(--ui-bg); }
+  .pc-ico { font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--ui-accent) 10%, transparent); }
+  .pc .grow { flex: 1; min-width: 0; }
+  .pc b { font-size: 15.5px; }
   .codebox { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border: 1px dashed var(--ui-border); border-radius: 12px; background: var(--ui-bg); }
   .codebox code { flex: 1; font-size: 12.5px; word-break: break-all; color: var(--ui-muted-fg); }
   details.adv summary { cursor: pointer; font-weight: 600; font-size: 15px; }
@@ -173,20 +177,30 @@
         <label><span data-t="Language|Ngôn ngữ"></span><select class="ui-select" id="sLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
       </div>
       <div class="fields" style="margin-top:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))">
-        <div><span class="small muted" data-t="Listening|Nghe giọng nói"></span><div data-speech-picker="stt"></div></div>
-        <div><span class="small muted" data-t="Speaking|Giọng đọc"></span><div data-speech-picker="tts"></div></div>
+        <div data-speech-picker="stt"></div>
+        <div data-speech-picker="tts"></div>
       </div>
       <div class="row" style="margin-top:16px"><button class="btn primary" id="sSave" data-t="Save|Lưu"></button><span class="muted small" id="sOut"></span></div>
     </div>
 
     <div class="sec">
-      <h3 data-t="Use gadgets with another computer|Dùng gadget với máy tính khác"></h3>
-      <p id="srvText"></p>
-      <div id="srvSelf">
-        <p class="small muted" style="margin:0 0 8px" data-t="To set gadgets up from another computer, copy this code there.|Muốn cài gadget từ máy khác cho máy này, sao chép mã này sang máy đó."></p>
-        <div class="codebox"><code id="myCode"></code><button class="btn" id="cpCode" data-t="Copy|Sao chép"></button></div>
+      <h3 data-t="Which computer your gadgets talk to|Gadget trò chuyện với máy tính nào"></h3>
+      <p data-t="The assistant that answers runs on that computer. Gadgets you add here are connected to it.|Trợ lý trả lời chạy trên máy đó. Gadget bạn thêm từ đây sẽ được nối vào máy đó."></p>
+      <div class="pc">
+        <div class="pc-ico">🖥️</div>
+        <div class="grow"><b id="pcName"></b><div class="small muted" id="pcSub"></div></div>
+        <span class="ui-badge good" id="pcBadge" data-t="Connected|Đang kết nối"></span>
       </div>
-      <div class="row" style="margin-top:12px"><button class="btn" id="bServer" data-t="Change|Đổi máy tính"></button><button class="btn link" id="bServerSelf" hidden data-t="Use this computer again|Dùng lại máy này"></button></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="bServer" data-t="Connect to another computer|Kết nối máy tính khác"></button>
+        <button class="btn" id="bServerSelf" hidden data-t="Disconnect, use this computer|Huỷ kết nối, dùng máy này"></button>
+      </div>
+    </div>
+
+    <div class="sec" id="shareSec">
+      <h3 data-t="Let another computer set up gadgets for this one|Cho máy khác cài gadget vào máy này"></h3>
+      <p data-t="Copy this code, then on the other computer open AICW Gadgets → Settings → Connect to another computer and paste it.|Sao chép mã này, rồi trên máy kia mở AICW Gadgets → Cài đặt → Kết nối máy tính khác và dán vào."></p>
+      <div class="codebox"><code id="myCode"></code><button class="btn" id="cpCode" data-t="Copy code|Sao chép mã"></button></div>
     </div>
 
     <div class="sec">
@@ -280,8 +294,8 @@
 <dialog id="dlgServer">
   <h3 data-t="Use another computer|Dùng máy tính khác"></h3>
   <p class="muted small" data-t="Gadgets you set up here will talk to the assistant on that computer. On that computer open AICW Gadgets → Settings → Copy, then paste here.|Gadget cài từ máy này sẽ trò chuyện với trợ lý trên máy kia. Trên máy kia mở AICW Gadgets → Cài đặt → Sao chép, rồi dán vào đây."></p>
-  <div class="fields"><label><span data-t="Computer name (for you)|Tên máy (để bạn nhớ)"></span><input class="ui-input" id="srvLabel" maxlength="60" data-tp="e.g. Office PC|vd Máy bàn ở văn phòng"></label>
-  <label><span data-t="Code|Mã"></span><input class="ui-input" id="srvCode" maxlength="300"></label></div>
+  <div class="fields"><label><span data-t="Code from the other computer|Mã của máy kia"></span><input class="ui-input" id="srvCode" maxlength="300"></label>
+  <label><span data-t="Name (optional)|Tên gọi (không bắt buộc)"></span><input class="ui-input" id="srvLabel" maxlength="60" data-tp="Taken from the code if empty|Để trống sẽ lấy tên trong mã"></label></div>
   <div class="err" id="srvErr"></div>
   <div class="actions"><button class="btn primary" id="srvSave" data-t="Use this computer|Dùng máy này"></button><button class="btn" id="srvCancel" data-t="Cancel|Huỷ"></button></div>
 </dialog>
@@ -369,6 +383,7 @@ function step(name) {
   if (name !== 'confirm') { clearInterval(W.tick); W.tick = null; }
 }
 function openWizard() {
+  loadServer().catch(() => {});
   Object.assign(W, { picked: null, job: null, nets: [], ssid: '', usb: null, retry: false });
   $('#foundList').innerHTML = ''; $('#usbBox').hidden = true; $('#flashBar').hidden = true; $('#flashNote').textContent = '';
   $('#findHint').textContent = T('Searching…|Đang tìm…');
@@ -513,7 +528,7 @@ function showWifi(p) {
   $('#wErr').textContent = p.reason === 'wrong_password' ? T(`Could not join “${p.ssid}”. The password looks wrong, type it again.|Không vào được “${p.ssid}”. Có vẻ sai mật khẩu, bạn gõ lại nhé.`)
     : p.reason === 'ssid_not_seen' ? T(`The gadget cannot see “${p.ssid}”. Pick a network from the list (2.4 GHz).|Gadget không thấy mạng “${p.ssid}”. Chọn một mạng trong danh sách (2.4 GHz).`) : '';
   $('#wPass').value = ''; $('#bConnect').disabled = false;
-  $('#wServer').innerHTML = S.target && !S.target.self ? T(`The gadget will talk to the assistant on <b>${esc(S.target.label || 'another computer')}</b>.|Gadget sẽ trò chuyện với trợ lý trên <b>${esc(S.target.label || 'máy tính khác')}</b>.`) : T('The gadget will talk to the assistant on this computer.|Gadget sẽ trò chuyện với trợ lý trên máy tính này.');
+  $('#wServer').innerHTML = S.target && !S.target.self ? T(`The gadget will talk to the assistant on <b>${esc(S.target.label || 'another computer')}</b>.|Gadget sẽ trò chuyện với trợ lý trên <b>${esc(S.target.label || 'máy tính khác')}</b>.`) : T(`The gadget will talk to the assistant on <b>this computer</b>.|Gadget sẽ trò chuyện với trợ lý trên <b>máy này</b>.`);
   $('#bConnect').textContent = W.job ? T('Try again|Thử lại') : T('Next|Tiếp tục');
   setTimeout(() => ($('#wSsid').value ? $('#wPass') : $('#wSsid')).focus(), 50);
 }
@@ -572,12 +587,13 @@ async function loadStatus() {
 }
 async function loadServer() {
   const r = await aicw.call('connectCode', {});
-  S.target = r.target; S.code = r.code;
+  S.target = r.target; S.code = r.code; S.me = r.me;
   $('#myCode').textContent = r.code;
   const self = !!r.target.self;
-  $('#srvText').innerHTML = self ? T('Gadgets you add here talk to the assistant on <b>this computer</b>.|Gadget bạn thêm ở đây trò chuyện với trợ lý trên <b>máy tính này</b>.')
-    : T(`Gadgets you add here talk to the assistant on <b>${esc(r.target.label || 'another computer')}</b>. This computer only sets them up.|Gadget bạn thêm ở đây trò chuyện với trợ lý trên <b>${esc(r.target.label || 'máy tính khác')}</b>. Máy này chỉ dùng để cài đặt.`);
-  $('#srvSelf').hidden = !self; $('#bServerSelf').hidden = self;
+  $('#pcName').textContent = self ? `${r.me} · ${T('this computer|máy này')}` : (r.target.label || T('Another computer|Máy tính khác'));
+  $('#pcSub').textContent = self ? T('Gadgets talk to the assistant on this computer.|Gadget trò chuyện với trợ lý trên máy này.') : T(`Connected ${ago(r.target.at)}. This computer only sets gadgets up.|Kết nối ${ago(r.target.at)}. Máy này chỉ dùng để cài gadget.`);
+  $('#bServerSelf').hidden = self; $('#shareSec').hidden = !self;
+  $('#bServer').textContent = self ? T('Connect to another computer|Kết nối máy tính khác') : T('Change computer|Đổi máy tính khác');
 }
 $('#cpCode').onclick = () => { (aicw.copy || ((t) => navigator.clipboard.writeText(t)))(S.code); toast(T('Copied|Đã sao chép'), 'good'); };
 $('#bServer').onclick = () => { $('#srvErr').textContent = ''; $('#srvCode').value = ''; $('#dlgServer').showModal(); };
@@ -585,7 +601,10 @@ $('#srvCancel').onclick = () => $('#dlgServer').close();
 $('#srvSave').onclick = () => aicw.call('setTarget', { code: $('#srvCode').value, label: $('#srvLabel').value.trim() })
   .then(() => { $('#dlgServer').close(); toast(T('Saved|Đã lưu'), 'good'); loadServer(); })
   .catch((e) => ($('#srvErr').textContent = e.message));
-$('#bServerSelf').onclick = () => aicw.call('setTarget', {}).then(loadServer);
+$('#bServerSelf').onclick = async () => {
+  const ok = aicw.ui?.confirm ? await aicw.ui.confirm(T('Disconnect from that computer? Gadgets you add from now on talk to this computer. Gadgets already set up keep talking to the other one until you set them up again.|Huỷ kết nối với máy kia? Gadget thêm từ giờ sẽ trò chuyện với máy này. Gadget đã cài trước vẫn nói chuyện với máy kia cho tới khi cài lại.')) : true;
+  if (ok) aicw.call('setTarget', {}).then(() => { toast(T('Disconnected|Đã huỷ kết nối'), 'good'); loadServer(); });
+};
 $('#sSave').onclick = () => aicw.call('updateSettings', {
   agent: $('#sAgent').value, language: $('#sLang').value,
   sttEngine: window.AicwApp ? AicwApp.speechEngine('stt') : 'auto', ttsEngine: window.AicwApp ? AicwApp.speechEngine('tts') : 'auto',

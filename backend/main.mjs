@@ -67,12 +67,22 @@ const CODE_PREFIX = 'aicw-gadget:';
 function parseConnectCode(code) {
   let c = String(code || '').trim();
   const m = c.match(/aicw-gadget:(\S+)/i); if (m) c = m[1];
+  c = c.split('#')[0];
   const u = c.match(/agent\.aicoworker\.net\/[gs]\/([a-z0-9]{40,64})/i); if (u) c = 'relay:' + u[1].toLowerCase();
   if (/^[a-z2-7]{52}$/i.test(c)) c = 'relay:' + c.toLowerCase();
   if (/^relay:[a-z2-7]{52}$/i.test(c)) return c.toLowerCase();
   if (/^(\d{1,3}\.){3}\d{1,3}(:\d{2,5})?$/.test(c)) return c;
   if (/^[a-z0-9.-]{1,63}(:\d{2,5})?$/i.test(c) && c.includes('.')) return c;
   throw new Error('Mã kết nối không đúng. Mở AICW Gadgets trên máy chủ, mục Tổng quan, bấm Sao chép mã.');
+}
+// The name people see for a computer: its own name, without ".local".
+async function computerName() {
+  const os = await import('node:os');
+  return String(os.hostname() || 'Máy tính').replace(/\.(local|lan|home)$/i, '').slice(0, 40);
+}
+function nameInCode(code) {
+  const m = String(code || '').match(/#([^\s]+)/);
+  try { return m ? decodeURIComponent(m[1]).slice(0, 60) : ''; } catch { return ''; }
 }
 async function targetHost(ctx) {
   const t = await ctx.store.get('targetHost'); // aicw:shared — host this setup machine sends gadgets to
@@ -277,7 +287,8 @@ export const commands = {
   async connectCode(_a, ctx) {
     const idn = await hostIdentity(ctx);
     const t = await targetHost(ctx);
-    return { code: CODE_PREFIX + 'relay:' + idn.id, target: t };
+    const me = await computerName();
+    return { code: CODE_PREFIX + 'relay:' + idn.id + '#' + encodeURIComponent(me), me, target: { ...t, label: t.self ? me : t.label } };
   },
   async setTarget(a, ctx) {
     ownerOnly(ctx);
@@ -285,7 +296,7 @@ export const commands = {
     const host = parseConnectCode(a.code);
     const idn = await hostIdentity(ctx);
     const self = host === 'relay:' + idn.id;
-    const t = self ? null : { host, label: String(a.label || '').slice(0, 60), at: Date.now() };
+    const t = self ? null : { host, label: String(a.label || nameInCode(a.code) || 'Máy tính khác').slice(0, 60), at: Date.now() };
     if (t) await ctx.store.set('targetHost', t); else await ctx.store.delete('targetHost'); // aicw:shared
     return { target: await targetHost(ctx) };
   },
