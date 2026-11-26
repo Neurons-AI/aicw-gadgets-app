@@ -464,9 +464,10 @@ aicw.on('event:devices', () => loadDevices().catch(() => {}));
 aicw.on('event:bridge', () => loadStatus().catch(() => {}));
 aicw.on('visible', refresh);
 translate();
+if (window.AicwApp && AicwApp.speechPicker) document.querySelectorAll('[data-speech-picker]').forEach((n) => { try { AicwApp.speechPicker(n, n.dataset.speechPicker); } catch (e) { console.warn('picker', e); } });
 show((aicw.getState() || {}).view || 'home');
 refresh().then(() => loadBoards().catch(fail('boards')));
-aicw.call('agents', {}).then((r) => { if (r?.agents?.length) { S.agents = r.agents; if (S.status) fillSettings(S.status.settings); } }).catch(() => {});
+aicw.call('agents', {}).then((r) => { if (r?.agents?.length) { S.agents = r.agents.filter((a) => !/^(member-|aiapp-|okdb-live-|cskh-rehearsal$)/.test(a)); if (S.status) fillSettings(S.status.settings); } }).catch(() => {});
 setInterval(() => { if (aicw.visible !== false) loadStatus().catch(() => {}); }, 15000);
 </script>
 </body>
