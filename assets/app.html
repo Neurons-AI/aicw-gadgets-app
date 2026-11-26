@@ -237,11 +237,11 @@
 
     <!-- 3: wifi -->
     <div class="pane" data-step="wifi" hidden>
-      <h2 data-t="Choose a Wi-Fi for the gadget|Chọn Wi-Fi cho gadget"></h2>
-      <p data-t="These are the networks the gadget can see. It needs 2.4 GHz Wi-Fi.|Đây là các mạng gadget bắt được. Gadget cần Wi-Fi 2.4 GHz."></p>
+      <h2 data-t="Which Wi-Fi should the gadget use?|Gadget sẽ dùng Wi-Fi nào?"></h2>
+      <p data-t="Type your Wi-Fi name and password (2.4 GHz). They are sent to the gadget over an encrypted link and are not saved here.|Nhập tên và mật khẩu Wi-Fi (2.4 GHz). Thông tin được gửi mã hoá sang gadget, không lưu trên máy này."></p>
       <div class="nets" id="nets"></div>
       <div class="fields">
-        <label id="ssidField" hidden><span data-t="Wi-Fi name|Tên Wi-Fi"></span><input class="ui-input" id="wSsid" maxlength="32" autocomplete="off"></label>
+        <label id="ssidField"><span data-t="Wi-Fi name|Tên Wi-Fi"></span><input class="ui-input" id="wSsid" maxlength="32" autocomplete="off"></label>
         <label><span data-t="Password|Mật khẩu"></span><input class="ui-input" id="wPass" type="password" maxlength="64" autocomplete="off"></label>
       </div>
       <div class="err" id="wErr"></div>
@@ -360,7 +360,7 @@ const ORDER = ['find', 'confirm', 'wifi', 'done'];
 function step(name) {
   W.step = name;
   document.querySelectorAll('#wiz [data-step]').forEach((p) => (p.hidden = p.dataset.step !== name));
-  const idx = { find: 0, confirm: 1, wifi: 2, joining: 2, done: 3, fail: 0 }[name] ?? 0;
+  const idx = { find: 0, wifi: 1, confirm: 2, joining: 2, done: 3, fail: 0 }[name] ?? 0;
   document.querySelectorAll('#wiz .dots i').forEach((d, i) => d.classList.toggle('on', i <= idx));
   if (name !== 'confirm') { clearInterval(W.tick); W.tick = null; }
 }
@@ -439,14 +439,15 @@ $('#bFlash').onclick = async () => {
 };
 
 function pick(g) {
-  W.scanning = false; W.picked = g;
-  step('confirm');
-  $('#confirmText').textContent = T('Connecting…|Đang kết nối…'); $('#countdown').textContent = '';
-  startSetup();
+  W.scanning = false; W.picked = g; W.job = null;
+  showWifi({});
 }
 async function startSetup() {
   try {
-    const job = await aicw.jobs.start('bleSetup', { id: W.picked.id }, { onProgress: onSetupProgress });
+    $('#confirmText').textContent = T('Connecting…|Đang kết nối…'); $('#countdown').textContent = '';
+    step('confirm');
+    const job = await aicw.jobs.start('bleSetup', { id: W.picked.id, ssid: W.ssid, password: W.pass || '' }, { onProgress: onSetupProgress });
+    W.pass = '';
     W.job = job.id;
     const r = await job.done;
     W.job = null;
@@ -495,30 +496,35 @@ function showWifi(p) {
   const nets = []; const seen = new Set();
   for (const n of (p.networks && p.networks.length ? p.networks : W.nets)) if (n.ssid && !seen.has(n.ssid)) { seen.add(n.ssid); nets.push(n); }
   nets.sort((a, b) => b.rssi - a.rssi);
-  const cur = p.ssid || W.ssid || (nets[0] || {}).ssid || '';
-  W.ssid = cur;
-  $('#nets').innerHTML = nets.slice(0, 12).map((n) => `<button data-ssid="${esc(n.ssid)}" class="${n.ssid === cur ? 'on' : ''}">${bars(n.rssi)}<span class="grow">${esc(n.ssid)}</span>${n.secure ? '🔒' : ''}</button>`).join('') + `<button data-ssid=""><span class="grow muted">${T('Other network…|Mạng khác…')}</span></button>`;
+  const cur = p.ssid || W.ssid || (aicw.getState() || {}).lastSsid || '';
+  W.ssid = nets.some((n) => n.ssid === cur) ? cur : '';
+  $('#wSsid').value = cur;
+  $('#nets').hidden = !nets.length;
+  $('#nets').innerHTML = !nets.length ? '' : nets.slice(0, 12).map((n) => `<button data-ssid="${esc(n.ssid)}" class="${n.ssid === cur ? 'on' : ''}">${bars(n.rssi)}<span class="grow">${esc(n.ssid)}</span>${n.secure ? '🔒' : ''}</button>`).join('') + `<button data-ssid=""><span class="grow muted">${T('Other network…|Mạng khác…')}</span></button>`;
   $('#nets').querySelectorAll('button').forEach((b) => (b.onclick = () => {
     $('#nets').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
     W.ssid = b.dataset.ssid; $('#ssidField').hidden = !!W.ssid; if (!W.ssid) $('#wSsid').focus(); else $('#wPass').focus();
   }));
-  $('#ssidField').hidden = nets.length > 0;
+  $('#ssidField').hidden = nets.length > 0 && !!W.ssid;
   $('#wErr').textContent = p.reason === 'wrong_password' ? T(`Could not join “${p.ssid}”. The password looks wrong, type it again.|Không vào được “${p.ssid}”. Có vẻ sai mật khẩu, bạn gõ lại nhé.`)
     : p.reason === 'ssid_not_seen' ? T(`The gadget cannot see “${p.ssid}”. Pick a network from the list (2.4 GHz).|Gadget không thấy mạng “${p.ssid}”. Chọn một mạng trong danh sách (2.4 GHz).`) : '';
   $('#wPass').value = ''; $('#bConnect').disabled = false;
   $('#wServer').innerHTML = S.target && !S.target.self ? T(`The gadget will talk to the assistant on <b>${esc(S.target.label || 'another computer')}</b>.|Gadget sẽ trò chuyện với trợ lý trên <b>${esc(S.target.label || 'máy tính khác')}</b>.`) : T('The gadget will talk to the assistant on this computer.|Gadget sẽ trò chuyện với trợ lý trên máy tính này.');
-  setTimeout(() => (W.ssid ? $('#wPass') : $('#wSsid')).focus(), 50);
+  $('#bConnect').textContent = W.job ? T('Try again|Thử lại') : T('Next|Tiếp tục');
+  setTimeout(() => ($('#wSsid').value ? $('#wPass') : $('#wSsid')).focus(), 50);
 }
 $('#bConnect').onclick = async () => {
   const ssid = W.ssid || $('#wSsid').value.trim();
-  if (!ssid) { $('#wErr').textContent = T('Choose a Wi-Fi first.|Chọn Wi-Fi trước nhé.'); return; }
-  if (!W.job) return;
-  $('#bConnect').disabled = true; $('#wErr').textContent = '';
+  if (!ssid) { $('#wErr').textContent = T('Type the Wi-Fi name first.|Nhập tên Wi-Fi trước nhé.'); $('#wSsid').focus(); return; }
   W.ssid = ssid;
+  aicw.setState({ ...(aicw.getState() || {}), lastSsid: ssid });
   const password = $('#wPass').value; $('#wPass').value = '';
+  $('#bConnect').disabled = true; $('#wErr').textContent = '';
+  if (!W.job) { W.pass = password; startSetup(); return; }
   try { await aicw.call('bleAnswer', { job: W.job, ssid, password }); $('#joinTitle').textContent = T('Connecting to Wi-Fi…|Đang vào Wi-Fi…'); step('joining'); }
   catch (e) { $('#wErr').textContent = e.message; $('#bConnect').disabled = false; }
 };
+$('#wSsid').oninput = () => { W.ssid = ''; $('#nets').querySelectorAll('button').forEach((x) => x.classList.remove('on')); };
 $('#wPass').onkeydown = (e) => { if (e.key === 'Enter') $('#bConnect').click(); };
 $('#bDone').onclick = async () => {
   if (W.doneMac) await aicw.call('updateDevice', { mac: W.doneMac, name: $('#dName').value.trim() || 'Dou', agent: $('#dAgent').value }).catch(() => {});

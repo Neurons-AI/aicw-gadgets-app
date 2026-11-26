@@ -125,8 +125,8 @@ export async function setup(id, { ssid, password, host }, onStep = () => {}, ret
       if (m.type !== 'status') continue;
       step(m.status);
       if (m.status === 'pairing_confirmed' && phase === 'confirm') {
-        phase = 'scan';
-        await send(client.seal({ action: 'wifi_scan' }));
+        // Wi-Fi was asked before pairing: send it right away, the gadget's setup window is short.
+        await provision();
       } else if (m.status === 'auth_ok') {
         return { device, networks, ssid: cur.ssid };
       } else if (m.status === 'wifi_failed') {
