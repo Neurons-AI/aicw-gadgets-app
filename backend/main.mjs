@@ -57,6 +57,13 @@ function ownerOnly(ctx) {
 const normMac = (m) => String(m || '').toLowerCase().replace(/[^0-9a-f]/g, '').slice(0, 12);
 const sessionKeyOf = (agent, mac) => `agent:${agent}:app-${SKILL}-${normMac(mac) || 'unknown'}`;
 
+// A separate key for talking TO another AI computer: the relay keeps one connection per key,
+// so using this computer's own host key would knock its own connection (or this one) off.
+async function setupIdentity(ctx) {
+  let seed = await ctx.store.get('setupSeed'); // aicw:shared
+  if (!seed) { seed = crypto.randomBytes(32).toString('hex'); await ctx.store.set('setupSeed', seed); } // aicw:shared
+  return identity(Buffer.from(seed, 'hex'));
+}
 async function hostIdentity(ctx) {
   let seed = await ctx.store.get('relaySeed'); // aicw:shared — this computer's bridge identity
   if (!seed) { seed = crypto.randomBytes(32).toString('hex'); await ctx.store.set('relaySeed', seed); } // aicw:shared
@@ -333,10 +340,11 @@ export const commands = {
     if (!self && host.startsWith('relay:')) {
       // Introduce this computer to the AI host: it shows up there and can be disconnected.
       try {
-        const hello = { type: 'setup_hello', id: idn.id, name: await computerName() };
+        const sid = await setupIdentity(ctx);
+        const hello = { type: 'setup_hello', id: sid.id, name: await computerName() };
         let r;
-        try { r = await askHost(idn, host.slice(6), hello, { timeoutMs: 15000 }); }
-        catch (e1) { ctx.log.warn('askHost try 1: ' + e1.message); await new Promise((x) => setTimeout(x, 1500)); r = await askHost(idn, host.slice(6), hello, { timeoutMs: 25000 }); }
+        try { r = await askHost(sid, host.slice(6), hello, { timeoutMs: 15000 }); }
+        catch (e1) { ctx.log.warn('askHost try 1: ' + e1.message); await new Promise((x) => setTimeout(x, 1500)); r = await askHost(sid, host.slice(6), hello, { timeoutMs: 25000 }); }
         if (r.type === 'setup_refused') throw new Error('Máy kia đã ngắt kết nối với máy này. Trên máy kia, kết nối lại trong AICW Gadgets.');
         hostName = r.name || '';
       } catch (e) {
