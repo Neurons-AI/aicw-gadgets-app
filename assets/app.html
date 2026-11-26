@@ -574,6 +574,15 @@ async function loadStatus() {
   const st = await aicw.call('status', {});
   S.status = st;
   const s = st.settings, b = st.bridge || {};
+  // The app was updated but the connection still runs the old code: start the new one (it takes over).
+  if (s.enabled !== false && b.running && b.version !== st.codeVersion && !S.upgrading) {
+    S.upgrading = true;
+    aicw.jobs.start('bridge', {}).catch(() => {}).finally(() => setTimeout(() => (S.upgrading = false), 60000));
+  }
+  if (s.enabled !== false && !b.running && !S.starting) {
+    S.starting = true;
+    aicw.jobs.start('bridge', {}).catch(() => {}).finally(() => setTimeout(() => (S.starting = false), 60000));
+  }
   if (!document.activeElement?.closest('[data-pane="settings"]')) {
     $('#sAgent').innerHTML = S.agents.map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
     $('#sAgent').value = s.agent; $('#sLang').value = s.language || 'vi';

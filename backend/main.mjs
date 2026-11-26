@@ -14,6 +14,9 @@ import * as ble from './ble.mjs';
 
 const serial = () => import('./serial.mjs'); // native module: loaded only by the USB commands
 
+// The version of the code this process runs: a bridge started by older code hands over to a newer one.
+const CODE_VERSION = (() => { try { return JSON.parse(require_fs().readFileSync(new URL('../app.json', import.meta.url), 'utf8')).version || '0'; } catch { return '0'; } })();
+function require_fs() { return globalThis.process.getBuiltinModule ? globalThis.process.getBuiltinModule('fs') : null; }
 const SKILL = String(process.env.AICW_APP_SKILL || process.env.AICW_SKILL || 'aicw-gadgets-dev').toLowerCase();
 const DEFAULTS = { enabled: true, agent: 'main', lan: true, lanPort: 8765, relay: true, open: true, language: 'vi', sttEngine: 'auto', ttsEngine: 'auto' };
 const PERSONA = (name) =>
@@ -291,7 +294,7 @@ export const commands = {
     // Real Wi-Fi / Ethernet first; skip VPN (100.64/10), VM bridges and docker-style ranges.
     const skip = (n, a) => /^(utun|tun|tap|bridge|vmnet|vbox|docker|veth|llw|awdl|zt|tailscale|wg)/i.test(n) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(a) || /^169\.254\./.test(a);
     const ips = Object.entries(os.networkInterfaces()).flatMap(([n, l]) => (l || []).filter((i) => i.family === 'IPv4' && !i.internal && !skip(n, i.address)).map((i) => i.address));
-    return { hostId: idn.id, settings: s, bridge: { ...(b || {}), running: !!running }, lanAddresses: ips };
+    return { hostId: idn.id, settings: s, bridge: { ...(b || {}), running: !!running }, lanAddresses: ips, codeVersion: CODE_VERSION };
   },
 
   // ---------- roles: this machine as host, or a setup machine for another host ----------
@@ -554,10 +557,16 @@ export const commands = {
     // that is just being stopped (or was killed) does not keep the new one from starting.
     const alive = async () => { const b = (await ctx.store.get('bridgeStatus')) || {}; return b.beat && Date.now() - b.beat < 22_000 ? b : null; }; // aicw:shared
     const first = await alive();
-    if (first) {
+    if (first && first.version === CODE_VERSION) {
       await new Promise((r) => setTimeout(r, 25_000));
       const again = await alive();
       if (again && again.beat !== first.beat) return { alreadyRunning: true };
+    } else if (first) {
+      // A bridge from an older version of the app is running: take over. Claiming bridgeStatus
+      // makes it stop within ~10 s; wait for that before opening the same relay identity.
+      ctx.log.info(`bridge ${first.version || '?'} -> ${CODE_VERSION}: taking over`);
+      await ctx.store.set('bridgeStatus', { ...first, pid: 'upgrade:' + CODE_VERSION, beat: Date.now(), version: CODE_VERSION }); // aicw:shared
+      await new Promise((r) => setTimeout(r, 14_000));
     }
     const me = process.pid + ':' + (ctx.job?.id || crypto.randomUUID());
     const idn = await hostIdentity(ctx);
@@ -574,7 +583,7 @@ export const commands = {
       outer.signal.addEventListener('abort', () => ac.abort(), { once: true });
       let relay = s.relay ? 'connecting' : 'off', lan = s.lan ? 'starting' : 'off';
       const beat = async () => {
-        await ctx.store.set('bridgeStatus', { beat: Date.now(), pid: me, startedAt, hostId: idn.id, relay, lan, lanPort: s.lanPort, online: [...live.keys()] }); // aicw:shared
+        await ctx.store.set('bridgeStatus', { beat: Date.now(), pid: me, version: CODE_VERSION, startedAt, hostId: idn.id, relay, lan, lanPort: s.lanPort, online: [...live.keys()] }); // aicw:shared
         ctx.events.emit('bridge', { relay, lan, online: live.size }, { to: 'all' });
       };
       const onChannel = (via) => (ch) => serveGadget(ctx, ch, via, live);
