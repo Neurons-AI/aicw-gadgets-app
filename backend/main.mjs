@@ -414,6 +414,9 @@ export const commands = {
   // (the keep-alive timer starts the next one).
   async bridge(_a, ctx) {
     if ((await settings(ctx)).enabled === false) return { disabled: true };
+    // Re-arm the 15-minute keep-alive every time: a job lives at most 6 h, and the
+    // timer is what starts the next one (arming the same key again just replaces it).
+    await ctx.triggers?.arm?.('keepalive', { every: '15m', key: 'bridge' }).catch((e) => ctx.log.warn('keepalive arm: ' + e.message));
     // Another bridge alive? Its heartbeat is every 10 s: wait 25 s and look again, so a bridge
     // that is just being stopped (or was killed) does not keep the new one from starting.
     const alive = async () => { const b = (await ctx.store.get('bridgeStatus')) || {}; return b.beat && Date.now() - b.beat < 22_000 ? b : null; }; // aicw:shared
