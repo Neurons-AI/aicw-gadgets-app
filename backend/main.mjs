@@ -337,6 +337,7 @@ export const commands = {
         if (r.type === 'setup_refused') throw new Error('Máy kia đã ngắt kết nối với máy này. Trên máy kia, kết nối lại trong AICW Gadgets.');
         hostName = r.name || '';
       } catch (e) {
+        ctx.log.warn('askHost: ' + (e?.stack || e));
         if (/offline/.test(e.message)) throw new Error('Không liên lạc được với máy kia. Kiểm tra máy đó đang mở AICoworker và AICW Gadgets đang bật kết nối.');
         throw e;
       }
