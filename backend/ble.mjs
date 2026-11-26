@@ -58,7 +58,14 @@ export async function setup(id, { ssid, password, host }, onStep = () => {}, ret
 
   const step = (s, extra) => onStep({ step: s, text: STATUS_TEXT[s] || s, ...extra });
   step('connecting', { text: 'Đang kết nối Bluetooth…' });
-  await p.connectAsync();
+  // A link left over from an earlier attempt (cancelled, page closed) blocks a new one.
+  if (p.state === 'connected' || p.state === 'connecting') { await p.disconnectAsync().catch(() => {}); await new Promise((r) => setTimeout(r, 600)); }
+  try { await p.connectAsync(); }
+  catch (e) {
+    if (!/already connected/i.test(String(e?.message))) throw e;
+    await p.disconnectAsync().catch(() => {}); await new Promise((r) => setTimeout(r, 800));
+    await p.connectAsync();
+  }
   const done = { closed: false };
   p.once('disconnect', () => { done.closed = true; });
   try {
