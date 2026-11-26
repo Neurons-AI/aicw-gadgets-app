@@ -131,6 +131,25 @@
   .link { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--ui-border); border-radius: 12px; background: var(--ui-bg); }
   .link .grow { flex: 1; min-width: 0; }
   .link .btn { padding: 7px 12px; font-size: 13.5px; }
+  .help { max-width: 760px; }
+  .help h2 { font-size: 20px; margin: 4px 0 6px; }
+  .help .intro { color: var(--ui-muted-fg); line-height: 1.6; margin: 0 0 18px; }
+  .help details { border: 1px solid var(--ui-border); border-radius: 16px; background: var(--ui-surface); margin-bottom: 12px; overflow: hidden; }
+  .help summary { cursor: pointer; padding: 16px 18px; font-weight: 650; font-size: 15.5px; display: flex; gap: 12px; align-items: center; list-style: none; }
+  .help summary::-webkit-details-marker { display: none; }
+  .help summary::after { content: '›'; margin-left: auto; font-size: 20px; color: var(--ui-muted-fg); transition: transform .2s; }
+  .help details[open] summary::after { transform: rotate(90deg); }
+  .help summary .num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--ui-accent) 14%, transparent); color: var(--ui-accent); font-size: 14px; flex: none; }
+  .help .body { padding: 0 18px 18px 60px; line-height: 1.65; font-size: 14.5px; }
+  .help .body ol, .help .body ul { padding-left: 20px; margin: 8px 0; }
+  .help .body li { margin: 6px 0; }
+  .help .tip { padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--ui-accent) 8%, var(--ui-bg)); margin: 10px 0; font-size: 14px; }
+  .help .warn { padding: 10px 14px; border-radius: 12px; background: color-mix(in srgb, var(--ui-warn) 12%, var(--ui-bg)); margin: 10px 0; font-size: 14px; }
+  .help table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
+  .help td, .help th { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--ui-border); vertical-align: top; }
+  .help kbd { font-family: inherit; font-size: 12.5px; padding: 1px 7px; border: 1px solid var(--ui-border); border-bottom-width: 2px; border-radius: 6px; background: var(--ui-bg); }
+  .help .goto { margin-top: 10px; }
+  @media (max-width: 560px) { .help .body { padding-left: 18px; } }
   .pc { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--ui-border); border-radius: 14px; background: var(--ui-bg); }
   .pc-ico { font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--ui-accent) 10%, transparent); }
   .pc .grow { flex: 1; min-width: 0; }
@@ -161,6 +180,7 @@
     <button data-view="home" class="on" data-t="My gadgets|Gadget của tôi"></button>
     <button data-view="chat" data-t="Conversations|Hội thoại"></button>
     <button data-view="settings" data-t="Settings|Cài đặt"></button>
+    <button data-view="help" data-t="Help|Hướng dẫn"></button>
   </nav>
 
   <!-- My gadgets -->
@@ -183,6 +203,114 @@
   <section data-pane="chat" hidden>
     <div class="pick" id="chPick"></div>
     <div class="chat" id="chat"></div>
+  </section>
+
+  <!-- Help -->
+  <section data-pane="help" hidden>
+    <div class="help">
+      <h2>Hướng dẫn dùng AICW Gadgets</h2>
+      <p class="intro">Gadget là một thiết bị nhỏ cầm tay, có micro và loa. Bạn <b>bấm nút và nói</b>, trợ lý AI trên máy tính trả lời bằng <b>giọng nói</b>. Làm lần lượt các mục dưới đây từ trên xuống là dùng được.</p>
+
+      <details open>
+        <summary><span class="num">1</span>Cần chuẩn bị gì?</summary>
+        <div class="body">
+          <ul>
+            <li><b>Một gadget được hỗ trợ</b>, ví dụ M5Stack StickS3 (danh sách ở mục 7).</li>
+            <li><b>Cáp USB-C có truyền dữ liệu</b>. Nhiều cáp chỉ dùng để sạc, cắm vào máy tính sẽ không nhận. Cáp đi kèm điện thoại thường dùng được.</li>
+            <li><b>Wi-Fi 2.4 GHz</b> (gadget không bắt được Wi-Fi 5 GHz), kèm tên và mật khẩu Wi-Fi.</li>
+            <li><b>Máy tính có AICoworker</b> đang mở và đã bật <b>Bluetooth</b>.</li>
+          </ul>
+          <div class="tip">💡 Wi-Fi nhà bạn có hai tên (vd <i>NhaToi</i> và <i>NhaToi_5G</i>)? Chọn tên <b>không có</b> chữ 5G.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="num">2</span>Cài firmware AICW Gadget (chỉ làm 1 lần, cần cáp USB)</summary>
+        <div class="body">
+          <p><b>Firmware</b> là phần mềm chạy bên trong gadget. Gadget mới mua chưa có firmware AICW Gadget nên cần cài một lần qua cáp USB, mất khoảng <b>1 phút</b>. Gadget đã cài rồi thì bỏ qua mục này.</p>
+          <ol>
+            <li>Mở tab <b>Gadget của tôi</b> → bấm <b>+ Thêm gadget</b>.</li>
+            <li><b>Cắm gadget vào máy tính</b> bằng cáp USB. Vài giây sau app hiện <i>“Đã thấy: tên gadget”</i>.</li>
+            <li>Bấm <b>Cài firmware AICW Gadget</b>, rồi bấm đồng ý. Chờ thanh tiến độ chạy đến 100%. <b>Đừng rút cáp</b> trong lúc này.</li>
+            <li>Xong thì gadget tự khởi động lại, màn hình hiện mặt Dou, app tự chuyển sang bước kết nối (mục 3). Bạn có thể rút cáp.</li>
+          </ol>
+          <div class="warn"><b>Cắm cáp mà app không thấy gadget?</b> Thử lần lượt:
+            <ol>
+              <li>Đổi <b>cáp khác</b>. Đây là lý do hay gặp nhất: cáp chỉ dùng để sạc.</li>
+              <li>Cắm vào <b>cổng USB khác</b> trên máy tính, không cắm qua hub chia cổng.</li>
+              <li>Đưa gadget vào <b>chế độ nạp firmware</b>: rút cáp ra, <b>giữ nút BOOT</b> (một số máy ghi <kbd>G0</kbd>), cắm cáp lại trong lúc vẫn giữ nút, rồi thả nút. Bấm <b>Cài firmware AICW Gadget</b> lần nữa.</li>
+              <li>Trên <b>Windows</b>: gadget có ghi “Có thể cần driver” ở bảng mục 7 thì tải driver CH343 (chip CH34x) hoặc CP210x từ trang của hãng chip, cài xong cắm lại.</li>
+            </ol>
+          </div>
+          <div class="warn"><b>Đang cài thì bị lỗi?</b> Không sao, gadget không hỏng. Cắm lại, đưa vào chế độ nạp firmware như trên rồi cài lại.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="num">3</span>Kết nối gadget với trợ lý (qua Bluetooth)</summary>
+        <div class="body">
+          <ol>
+            <li>Bật gadget và để <b>gần máy tính</b>. Trong <b>+ Thêm gadget</b>, app tự tìm và hiện <i>“Dou 1234 · Ngay cạnh bạn”</i> → bấm <b>Cài đặt</b>.</li>
+            <li>Nhập <b>tên Wi-Fi</b> và <b>mật khẩu</b> → bấm <b>Tiếp tục</b>. Mật khẩu được gửi mã hoá sang gadget, không lưu trên máy tính.</li>
+            <li>Màn hình gadget hỏi xác nhận: <b>bấm nút lớn phía trước gadget</b> trong vòng 60 giây.</li>
+            <li>Gadget vào Wi-Fi, lưu cài đặt rồi tự khởi động lại. App hiện <b>“Gadget đã sẵn sàng”</b>: đặt tên, chọn trợ lý, bấm <b>Xong</b>.</li>
+          </ol>
+          <div class="tip">💡 <b>Gõ sai mật khẩu Wi-Fi?</b> App báo ngay để gõ lại, không cần bấm nút trên gadget lần nữa.</div>
+          <div class="warn"><b>App không tìm thấy gadget?</b> Gadget từng kết nối trước đây sẽ không hiện ra. Trên gadget mở menu → <b>Reset pairing</b>, rồi thử lại. Kiểm tra thêm Bluetooth trên máy tính đã bật chưa.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="num">4</span>Nói chuyện với trợ lý</summary>
+        <div class="body">
+          <ol>
+            <li><b>Bấm giữ nút</b> trên gadget và nói, ví dụ <i>“Mấy giờ rồi?”</i>. Nói xong thì thả nút.</li>
+            <li>Chờ vài giây, trợ lý trả lời bằng giọng nói trên loa của gadget.</li>
+          </ol>
+          <p>Xem lại các câu đã nói ở tab <b>Hội thoại</b>. Đổi tên, đổi trợ lý hay gỡ gadget ở tab <b>Gadget của tôi</b>.</p>
+          <div class="tip">💡 Gadget chỉ trò chuyện được khi <b>máy chủ AI đang mở AICoworker</b>. Tắt máy đó thì gadget báo không kết nối được.</div>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="num">5</span>Dùng 2 máy tính: máy chủ AI và máy cài gadget</summary>
+        <div class="body">
+          <p>Bạn có thể để trợ lý chạy trên một máy mạnh, luôn bật (<b>máy chủ AI</b>), và cài gadget bằng một máy khác có Bluetooth ở gần bạn, ví dụ laptop (<b>máy cài gadget</b>).</p>
+          <ol>
+            <li>Trên <b>máy chủ AI</b>: tab <b>Cài đặt</b> → chọn <b>Máy chủ AI</b> → bấm <b>Sao chép mã</b> → gửi mã đó sang máy kia (qua chat, email…).</li>
+            <li>Trên <b>máy cài gadget</b>: tab <b>Cài đặt</b> → chọn <b>Máy cài gadget</b> → dán mã → bấm <b>Nối</b>.</li>
+            <li>Từ đó, gadget cài từ máy này sẽ trò chuyện với trợ lý trên máy chủ AI. Danh sách gadget giống nhau trên cả hai máy.</li>
+          </ol>
+          <ul>
+            <li><b>Không cho một máy cài gadget dùng nữa:</b> trên máy chủ AI, vào Cài đặt → mục “Máy cài gadget đang nối vào” → bấm <b>Ngắt kết nối</b>.</li>
+            <li><b>Lỡ đưa mã cho người lạ?</b> Bấm <b>Tạo mã mới</b> trên máy chủ AI. Mọi máy cài gadget và gadget cũ bị xoá, phải cài lại bằng mã mới.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="num">6</span>Gặp lỗi thì làm gì?</summary>
+        <div class="body">
+          <table>
+            <tr><th>Bạn thấy</th><th>Cách xử lý</th></tr>
+            <tr><td>Gadget báo <i>Không kết nối được</i></td><td>Kiểm tra máy chủ AI đang mở AICoworker. Trên máy đó vào Cài đặt → bấm <b>Khởi động lại</b>, đợi chấm chuyển màu xanh.</td></tr>
+            <tr><td>Gadget báo <i>Không nghe được</i></td><td>Nói gần micro hơn và giữ nút cho tới khi nói xong. Trên máy chủ AI vào Cài đặt → Trợ lý → ở mục <b>Chép lời bằng</b>, chọn bộ chạy ngay trên máy (Whisper hoặc Gemma).</td></tr>
+            <tr><td>Gadget không vào được Wi-Fi</td><td>Kiểm tra đúng tên và mật khẩu, Wi-Fi là 2.4 GHz, gadget đặt gần bộ phát. Nếu vẫn không được: trên gadget mở menu → <b>Reset pairing</b>, rồi thêm gadget lại.</td></tr>
+            <tr><td>Thẻ gadget có dòng chữ đỏ</td><td>Đó là lý do lỗi của lần nói gần nhất. Rê chuột vào dòng đó để xem chi tiết.</td></tr>
+          </table>
+        </div>
+      </details>
+
+      <details>
+        <summary><span class="num">7</span>Gadget nào dùng được?</summary>
+        <div class="body">
+          <table><tr><th>Thiết bị</th><th>Trạng thái</th><th>Driver USB trên Windows</th></tr><tr><td>M5Stack StickS3</td><td>✅ Đã thử thật</td><td>Không cần</td></tr><tr><td>AIPI Lite</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>Espressif ESP32-S3-BOX-3</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>M5Stack AtomS3 + Atomic Voice Base (experimental)</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>M5Stack Core2 (v1.0)</td><td>Có firmware, chưa thử thật</td><td>Có thể cần driver CH34x</td></tr><tr><td>M5Stack CoreS3</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>M5Stack StickC Plus2</td><td>Có firmware, chưa thử thật</td><td>Có thể cần driver CH34x</td></tr><tr><td>M5Stack StopWatch</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>Seeed Studio SenseCAP Watcher</td><td>Có firmware, chưa thử thật</td><td>Có thể cần driver CH34x</td></tr><tr><td>Seeed Studio XIAO ESP32-S3 1.47" Touch Display</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>Seeed Studio reTerminal Sticky (3.97" e-paper, experimental)</td><td>Có firmware, chưa thử thật</td><td>Có thể cần driver CH34x</td></tr><tr><td>Waveshare ESP32-S3-Touch-AMOLED-1.75</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>Waveshare ESP32-S3-Touch-AMOLED-1.75C</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>Waveshare ESP32-S3-Touch-AMOLED-2.16</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>Waveshare ESP32-S3-Touch-LCD-1.85B</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr><tr><td>Waveshare ESP32-S3-Touch-LCD-1.85C</td><td>Có firmware, chưa thử thật</td><td>Không cần</td></tr></table>
+          <p class="small muted" style="margin-top:8px">Trên Mac và Linux không cần cài driver.</p>
+        </div>
+      </details>
+
+      <div class="goto"><button class="btn primary" id="helpAdd" data-t="+ Add a gadget now|+ Thêm gadget ngay"></button></div>
+    </div>
   </section>
 
   <!-- Settings -->
@@ -285,9 +413,10 @@
       <p class="muted small" id="findHint" data-t="Searching…|Đang tìm…"></p>
       <div class="alt" id="usbAlt">
         <b data-t="New gadget, never set up?|Gadget mới, chưa cài bao giờ?"></b>
-        <span id="usbText" data-t="Plug it into this computer with a USB cable. We will install the AICW software for you, then continue here.|Cắm gadget vào máy tính bằng cáp USB. App sẽ cài phần mềm AICW cho gadget rồi tiếp tục ở đây."></span>
+        <button class="btn link" id="usbHelp" style="padding:0;margin:6px 0;display:block" data-t="Step-by-step guide and fixes|Xem hướng dẫn chi tiết và cách xử lý lỗi"></button>
+        <span id="usbText" data-t="Plug it into this computer with a USB cable. We will install the AICW Gadget firmware for you, then continue here.|Cắm gadget vào máy tính bằng cáp USB. App sẽ cài firmware AICW Gadget cho gadget rồi tiếp tục ở đây."></span>
         <div id="usbBox" hidden style="margin-top:12px">
-          <div class="row"><b id="usbName" style="margin:0;flex:1"></b><button class="btn primary" id="bFlash" data-t="Install AICW software|Cài phần mềm AICW"></button></div>
+          <div class="row"><b id="usbName" style="margin:0;flex:1"></b><button class="btn primary" id="bFlash" data-t="Install AICW Gadget firmware|Cài firmware AICW Gadget"></button></div>
           <div class="bar" id="flashBar" hidden><span></span></div>
           <div class="small muted" id="flashNote"></div>
         </div>
@@ -376,7 +505,7 @@ let S = { status: null, devices: [], agents: [{ id: 'main', name: 'main' }], tar
 
 // ---------- tabs ----------
 function show(v) {
-  if (!['home', 'chat', 'settings'].includes(v)) v = 'home';
+  if (!['home', 'chat', 'settings', 'help'].includes(v)) v = 'home';
   document.querySelectorAll('[data-pane]').forEach((p) => (p.hidden = p.dataset.pane !== v));
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
   aicw.setState({ ...(aicw.getState() || {}), view: v });
@@ -452,7 +581,9 @@ function closeWizard() {
   if (W.job) aicw.call('bleAnswer', { job: W.job, cancel: true }).catch(() => {});
   $('#wiz').hidden = true; loadDevices().catch(() => {});
 }
-$('#wClose').onclick = closeWizard; $('#bFailClose').onclick = closeWizard;
+$('#wClose').onclick = closeWizard;
+$('#helpAdd').onclick = () => { show('home'); openWizard(); };
+$('#usbHelp').onclick = () => { closeWizard(); show('help'); const d = document.querySelectorAll('.help details')[1]; d.open = true; setTimeout(() => d.scrollIntoView({ behavior: 'smooth' }), 50); }; $('#bFailClose').onclick = closeWizard;
 $('#bRetry').onclick = () => { step('find'); findLoop(); };
 
 async function findLoop() {
@@ -497,17 +628,17 @@ async function renderUsb(ports) {
   if (!W.usb.board) $('#flashNote').textContent = T('This board is not supported yet.|Bo mạch này chưa được hỗ trợ.');
 }
 $('#bFlash').onclick = async () => {
-  const ok = aicw.ui?.confirm ? await aicw.ui.confirm(T('This replaces the software on the gadget. Continue?|Thao tác này thay phần mềm trên gadget. Tiếp tục?')) : true;
+  const ok = aicw.ui?.confirm ? await aicw.ui.confirm(T('This replaces the firmware on the gadget with AICW Gadget firmware. Continue?|Thao tác này thay firmware trên gadget bằng firmware AICW Gadget. Tiếp tục?')) : true;
   if (!ok) return;
   W.scanning = false;
   $('#bFlash').disabled = true; $('#flashBar').hidden = false;
   try {
     const r = await aicw.jobs.run('flashGadget', { port: W.usb.path, board: W.usb.board }, { onProgress: (j) => {
       $('#flashBar span').style.width = Math.round((j.progress || 0) * 100) + '%';
-      $('#flashNote').textContent = (j.progress || 0) < 0.06 ? T('Preparing…|Đang chuẩn bị…') : (j.progress || 0) > 0.95 ? T('Restarting the gadget…|Đang khởi động lại gadget…') : T(`Installing ${Math.round((j.progress || 0) * 100)}%|Đang cài ${Math.round((j.progress || 0) * 100)}%`);
+      $('#flashNote').textContent = (j.progress || 0) < 0.06 ? T('Preparing…|Đang chuẩn bị…') : (j.progress || 0) > 0.95 ? T('Restarting the gadget…|Đang khởi động lại gadget…') : T(`Installing firmware ${Math.round((j.progress || 0) * 100)}%|Đang cài firmware ${Math.round((j.progress || 0) * 100)}%`);
     } });
     W.flashedMac = String(r.mac || W.usb.serial || '').replace(/[^0-9a-f]/gi, '');
-    $('#flashNote').textContent = T('Installed. You can unplug the cable. Looking for the gadget…|Đã cài xong, có thể rút cáp. Đang tìm gadget…');
+    $('#flashNote').textContent = T('Firmware installed. You can unplug the cable. Looking for the gadget…|Đã cài firmware xong, có thể rút cáp. Đang tìm gadget…');
     W.usb = null;
     await sleep(4000); findLoop();
   } catch (e) {
