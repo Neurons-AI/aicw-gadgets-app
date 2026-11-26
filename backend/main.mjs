@@ -30,6 +30,19 @@ async function saveDevices(ctx, d) {
   await ctx.store.set('devices', d); // aicw:shared
   await ctx.events.emit('devices', { changed: true }, { to: 'all' });
 }
+// Every change to the device list goes through here, one at a time, so a turn finishing on the
+// bridge and an edit from the page never overwrite each other.
+let devLock = Promise.resolve();
+function editDevices(ctx, fn) {
+  const run = devLock.then(async () => {
+    const d = await devices(ctx);
+    const out = await fn(d);
+    await saveDevices(ctx, d);
+    return out;
+  });
+  devLock = run.catch(() => {});
+  return run;
+}
 function ownerOnly(ctx) {
   if (ctx.user && ctx.user.role && ctx.user.role !== 'owner') throw new Error('only the owner can change gadgets');
 }
@@ -92,8 +105,7 @@ function serveGadget(ctx, ch, via, live) {
         send({ type: 'audio_end', id });
       }
       send({ type: 'done', id });
-      dev.lastTurnAt = Date.now(); dev.lastTurnMs = Date.now() - t0;
-      const all = await devices(ctx); if (all[st.mac]) { all[st.mac] = { ...all[st.mac], lastTurnAt: dev.lastTurnAt, lastTurnMs: dev.lastTurnMs, lastHeard: text?.slice(0, 120) }; await saveDevices(ctx, all); }
+      await editDevices(ctx, (all) => { if (all[st.mac]) all[st.mac] = { ...all[st.mac], lastTurnAt: Date.now(), lastTurnMs: Date.now() - t0, lastHeard: text?.slice(0, 120) }; });
     } catch (e) {
       ctx.log.warn(`turn ${id} failed: ${e?.message || e}`);
       send({ type: 'error', id, text: friendly(e) });
@@ -106,21 +118,25 @@ function serveGadget(ctx, ch, via, live) {
     if (j.type === 'hello') {
       st.mac = normMac(j.mac) || normMac(ch.id);
       const s = await settings(ctx);
-      const devs = await devices(ctx);
-      const dev = devs[st.mac];
-      if (dev?.blocked) { send({ type: 'error', text: 'Thiết bị bị chặn' }); ch.close(); return; }
-      if (!dev && !s.open) {
-        // unknown gadget: list it as pending so the owner can allow it in the app
-        devs[st.mac] = { mac: st.mac, name: 'Dou mới', pending: true, firstSeen: Date.now(), device: j.device, fw: j.fw };
-        await saveDevices(ctx, devs);
+      const verdict = await editDevices(ctx, (devs) => {
+        const dev = devs[st.mac];
+        if (dev?.blocked) return 'blocked';
+        if (dev?.pending || (!dev && !s.open)) {
+          // unknown gadget: list it as pending so the owner can allow it in the app
+          devs[st.mac] = { name: 'Dou mới', firstSeen: Date.now(), ...dev, mac: st.mac, pending: true, device: j.device, fw: j.fw, lastSeen: Date.now() };
+          return dev ? 'pending' : 'new';
+        }
+        devs[st.mac] = { name: 'Dou', firstSeen: Date.now(), ...dev, mac: st.mac, device: j.device, fw: j.fw, via, online: true, lastSeen: Date.now() };
+        st.name = devs[st.mac].name;
+        return 'ok';
+      });
+      if (verdict === 'blocked') { send({ type: 'error', text: 'Thiết bị bị chặn' }); ch.close(); return; }
+      if (verdict !== 'ok') {
         send({ type: 'error', text: 'Chờ chủ máy cho phép' });
-        ctx.host.notify?.({ title: 'Gadget mới muốn kết nối', body: `Mở AICW Gadgets để cho phép (${st.mac}).` }).catch?.(() => {});
+        if (verdict === 'new') ctx.host.notify({ title: 'Gadget mới muốn kết nối', body: 'Mở AICW Gadgets để cho phép hoặc chặn.' }).catch(() => {});
         ch.close(); return;
       }
-      if (!dev) { devs[st.mac] = { mac: st.mac, name: 'Dou', firstSeen: Date.now() }; }
-      devs[st.mac] = { ...devs[st.mac], device: j.device, fw: j.fw, via, online: true, lastSeen: Date.now() };
-      await saveDevices(ctx, devs);
-      st.name = devs[st.mac].name; st.allowed = true;
+      st.allowed = true;
       live.set(st.mac, { via, since: Date.now() });
       send({ type: 'ready', name: st.name });
       return;
@@ -135,8 +151,8 @@ function serveGadget(ctx, ch, via, live) {
   ch.onClose(async () => {
     if (!st.mac) return;
     live.delete(st.mac);
-    const devs = await devices(ctx);
-    if (devs[st.mac]) { devs[st.mac] = { ...devs[st.mac], online: false, lastSeen: Date.now() }; await saveDevices(ctx, devs); }
+    if (!st.allowed) return;
+    await editDevices(ctx, (devs) => { if (devs[st.mac]) devs[st.mac] = { ...devs[st.mac], online: false, lastSeen: Date.now() }; });
   });
 }
 
@@ -221,8 +237,7 @@ export const commands = {
 
   async updateDevice({ mac, name, agent, blocked, pending, voice, language }, ctx) {
     ownerOnly(ctx);
-    const d = await devices(ctx), k = normMac(mac);
-    if (!d[k]) throw new Error('không có gadget này');
+    const k = normMac(mac);
     const patch = {};
     if (name !== undefined) patch.name = String(name).slice(0, 40) || 'Dou';
     if (agent !== undefined) patch.agent = String(agent).slice(0, 64) || undefined;
@@ -230,17 +245,17 @@ export const commands = {
     if (pending !== undefined) patch.pending = !!pending;
     if (voice !== undefined) patch.voice = String(voice).slice(0, 64) || undefined;
     if (language !== undefined) patch.language = String(language).slice(0, 8) || undefined;
-    d[k] = { ...d[k], ...patch };
-    await saveDevices(ctx, d);
-    return { device: d[k] };
+    return editDevices(ctx, (d) => {
+      if (!d[k]) throw new Error('không có gadget này');
+      d[k] = { ...d[k], ...patch };
+      return { device: d[k] };
+    });
   },
 
   async removeDevice({ mac }, ctx) {
     ownerOnly(ctx);
-    const d = await devices(ctx), k = normMac(mac);
-    delete d[k];
-    await saveDevices(ctx, d);
-    return { removed: k };
+    const k = normMac(mac);
+    return editDevices(ctx, (d) => { delete d[k]; return { removed: k }; });
   },
 
   async updateSettings(patch, ctx) {
@@ -315,9 +330,7 @@ export const commands = {
       const ports = await ser.listPorts();
       const mac = normMac(ports.find((p) => p.path === port)?.serial);
       if (mac) {
-        const d = await devices(ctx);
-        d[mac] = { name: 'Dou', firstSeen: Date.now(), ...d[mac], mac, pending: false, blocked: false };
-        await saveDevices(ctx, d);
+        await editDevices(ctx, (d) => { d[mac] = { name: 'Dou', firstSeen: Date.now(), ...d[mac], mac, pending: false, blocked: false }; });
         out.mac = mac;
       }
     }
@@ -356,11 +369,7 @@ export const commands = {
     ctx.job?.progress(0.97, 'Đang khởi động lại…');
     await new Promise((res) => setTimeout(res, 6000));
     const mac = normMac(r.mac);
-    if (mac) {
-      const d = await devices(ctx);
-      d[mac] = { name: 'Dou', firstSeen: Date.now(), ...d[mac], mac, board, fwVersion: version, flashedAt: Date.now(), pending: false };
-      await saveDevices(ctx, d);
-    }
+    if (mac) await editDevices(ctx, (d) => { d[mac] = { name: 'Dou', firstSeen: Date.now(), ...d[mac], mac, board, fwVersion: version, flashedAt: Date.now(), pending: false }; });
     return { board, version, chip: r.chip || chipLine, mac };
   },
 

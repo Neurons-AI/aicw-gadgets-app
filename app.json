@@ -2,7 +2,7 @@
   "schema": "aicw.app.v1",
   "name": "AICW Gadgets",
   "icon": "📟",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Flash, set up and talk to AICW voice gadgets (Dou on an M5Stack StickS3 and other ESP32 boards) from your own AICoworker.",
   "window": {
     "entry": "assets/app.html",
