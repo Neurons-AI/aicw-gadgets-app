@@ -3,7 +3,7 @@
   "name": "AICW Gadgets",
   "iconImage": "assets/icon.png",
   "icon": "📟",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Flash, set up and talk to AICW voice gadgets (Dou on an M5Stack StickS3 and other ESP32 boards) from your own AICoworker.",
   "window": {
     "entry": "assets/app.html",
@@ -523,6 +523,21 @@
             "mac",
             "ssid"
           ]
+        },
+        "consumer": false
+      },
+      "health": {
+        "description": "Status of the AI computer, its assistant, this computer's link to it and each gadget; check=true asks the assistant one short question to prove it answers.",
+        "args": {
+          "type": "object",
+          "properties": {
+            "check": {
+              "type": "boolean"
+            }
+          }
+        },
+        "output": {
+          "type": "object"
         },
         "consumer": false
       }

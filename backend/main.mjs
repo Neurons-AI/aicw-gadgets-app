@@ -158,6 +158,49 @@ async function askAgent(ctx, agent, mac, text) {
   return String(d.reply ?? '');
 }
 
+// ---------- health: what works right now, told plainly to the owner ----------
+// Every voice turn and every check records whether the assistant answered. When it breaks
+// (after it worked) the owner gets ONE notification, and one more when it works again.
+async function noteAgent(ctx, ok, err) {
+  const h = (await ctx.store.get('health')) || {}; // aicw:shared
+  const was = h.agentOk;
+  h.agentOk = ok;
+  if (ok) { h.agentOkAt = Date.now(); h.agentError = null; }
+  else { h.agentFailAt = Date.now(); h.agentError = String(err?.message || err || '').slice(0, 400); }
+  await ctx.store.set('health', h); // aicw:shared
+  if (was === true && !ok) ctx.host.notify({ title: 'Gadget không trả lời được', body: 'Trợ lý trên máy chủ AI đang lỗi: ' + friendly(err) + '. Mở AICW Gadgets → Tình trạng để xem.' }).catch(() => {});
+  if (was === false && ok) ctx.host.notify({ title: 'Gadget trả lời lại được rồi', body: 'Trợ lý trên máy chủ AI đã chạy lại bình thường.' }).catch(() => {});
+}
+// Plain view of this AI computer, used by the page here and by a setup computer over the relay.
+async function hostHealth(ctx) {
+  const b = (await ctx.store.get('bridgeStatus')) || {}; // aicw:shared
+  const s = await settings(ctx);
+  const h = (await ctx.store.get('health')) || {}; // aicw:shared
+  const running = !!(b.beat && Date.now() - b.beat < 90_000);
+  const devs = Object.values(await devices(ctx)).filter((d) => !d.pending && !d.blocked);
+  return {
+    name: await computerName(),
+    bridge: { running, enabled: s.enabled !== false, relay: running ? b.relay : 'off', lan: running ? b.lan : 'off', since: b.loopAt || b.startedAt, version: b.version },
+    agent: { ok: h.agentOk ?? null, okAt: h.agentOkAt || null, failAt: h.agentFailAt || null, error: h.agentError ? friendly(h.agentError) : null, detail: h.agentError || null, checkedAt: h.checkedAt || null },
+    gadgets: devs.map((d) => ({ mac: d.mac, name: d.name, online: !!d.online && running, lastSeen: d.lastSeen, ssid: d.ssid, lastTurnAt: d.lastTurnAt, lastError: d.lastError && (!d.lastTurnAt || d.lastError.at > d.lastTurnAt) ? d.lastError : null })),
+    at: Date.now(),
+  };
+}
+async function checkAgentNow(ctx) {
+  const s = await settings(ctx);
+  const t0 = Date.now();
+  try {
+    const reply = await askAgent(ctx, s.agent || 'main', 'healthcheck', 'Kiểm tra kết nối từ AICW Gadgets. Trả lời đúng một chữ: OK');
+    await noteAgent(ctx, true);
+    const h = (await ctx.store.get('health')) || {}; h.checkedAt = Date.now(); await ctx.store.set('health', h); // aicw:shared
+    return { ok: true, ms: Date.now() - t0, reply: String(reply).slice(0, 80) };
+  } catch (e) {
+    await noteAgent(ctx, false, e);
+    const h = (await ctx.store.get('health')) || {}; h.checkedAt = Date.now(); await ctx.store.set('health', h); // aicw:shared
+    return { ok: false, ms: Date.now() - t0, error: friendly(e), detail: String(e?.message || e).slice(0, 300) };
+  }
+}
+
 // ---------- Wi-Fi change over the live link ----------
 // The page asks; the bridge (which holds the gadget connections) sends it on its next beat.
 // The password waits in the store only until it is sent (at most 10 minutes).
@@ -247,18 +290,29 @@ function serveGadget(ctx, ch, via, live) {
       }
       send({ type: 'done', id });
       await editDevices(ctx, (all) => { if (all[st.mac]) all[st.mac] = { ...all[st.mac], lastTurnAt: Date.now(), lastTurnMs: Date.now() - t0, lastHeard: text?.slice(0, 120), lastError: null }; });
+      await noteAgent(ctx, true).catch(() => {});
     } catch (e) {
       const why = String(e?.message || e);
       ctx.log.warn(`turn ${id} failed: ${why}`);
       send({ type: 'error', id, text: friendly(e) });
       // Keep the real reason so the app can show it on the gadget's card.
       await editDevices(ctx, (all) => { if (all[st.mac]) all[st.mac] = { ...all[st.mac], lastError: { at: Date.now(), text: friendly(e), detail: why.slice(0, 300) } }; }).catch(() => {});
+      // Only the assistant failing is an AI-computer problem; a too-short recording is not.
+      if (/models failed|Cannot find module|agent|sessions_send|timeout|quá lâu|gateway/i.test(why)) await noteAgent(ctx, false, e).catch(() => {});
     }
   }
 
   ch.onMessage(async (m) => {
     if (Buffer.isBuffer(m)) { if (st.turn != null && st.allowed) st.pcm.push(m); return; }
     let j; try { j = JSON.parse(m); } catch { return; }
+    if (j.type === 'setup_health') {
+      const links = (await ctx.store.get('setupLinks')) || {}; // aicw:shared
+      const l = links[ch.id];
+      if (!l || l.removed) { send({ type: 'setup_refused', text: 'Máy này chưa được nối hoặc đã bị ngắt' }); ch.close(); return; }
+      links[ch.id] = { ...l, lastAt: Date.now() }; await ctx.store.set('setupLinks', links); // aicw:shared
+      const check = j.check ? await checkAgentNow(ctx) : undefined;
+      send({ type: 'setup_health', health: await hostHealth(ctx), check }); ch.close(); return;
+    }
     if (j.type === 'setup_list' || j.type === 'setup_op') {
       // A linked setup computer reads or changes this computer's gadgets. Its relay key is
       // its identity (ch.id), so a computer that was disconnected here gets nothing.
@@ -565,6 +619,26 @@ export const commands = {
     });
   },
 
+  // The state of everything the gadgets need, in one call: the AI computer (bridge + relay),
+  // the assistant, this computer's link to the AI computer, and each gadget.
+  async health({ check = false }, ctx) {
+    const t = await targetHost(ctx);
+    if (t.self) {
+      const check_ = check ? await checkAgentNow(ctx) : undefined;
+      return { role: 'ai', host: await hostHealth(ctx), check: check_ };
+    }
+    const t0 = Date.now();
+    try {
+      const r = await askTarget(ctx, { type: 'setup_health', check: !!check });
+      await ctx.store.set('lastHostReach', { okAt: Date.now() }); // aicw:shared
+      return { role: 'setup', link: { ok: true, ms: Date.now() - t0, label: t.label }, host: r.health, check: r.check };
+    } catch (e) {
+      if (e.unlinked) return { role: 'setup', link: { ok: false, unlinked: true, error: e.message, label: t.label } };
+      const last = (await ctx.store.get('lastHostReach')) || {}; // aicw:shared
+      return { role: 'setup', link: { ok: false, error: 'Không liên lạc được với máy chủ AI', detail: String(e?.message || e).slice(0, 200), label: t.label, lastOkAt: last.okAt || null } };
+    }
+  },
+
   async sendWifi({ mac, ssid, password }, ctx) {
     ownerOnly(ctx);
     const k = normMac(mac);
@@ -770,6 +844,7 @@ export const commands = {
     ctx.signal?.addEventListener('abort', () => outer.abort(), { once: true });
     const stop0 = (await ctx.store.get('stopBridge')) || 0; // aicw:shared
     let restartMark = (await ctx.store.get('restartBridge')) || 0; // aicw:shared
+    let relayDownSince = 0, relayWarned = false;
     while (!outer.signal.aborted) {
       idn = await hostIdentity(ctx); // a new code (rotateCode) takes effect on restart
       const s = await settings(ctx);
@@ -788,6 +863,8 @@ export const commands = {
         : Promise.resolve();
       while (!ac.signal.aborted) {
         await deliverWifi(ctx, live).catch((e) => log('wifi: ' + (e?.message || e)));
+        if (s.relay && relay !== 'up') { relayDownSince ||= Date.now(); if (!relayWarned && Date.now() - relayDownSince > 120_000) { relayWarned = true; ctx.host.notify({ title: 'Gadget mất kết nối với máy chủ AI', body: 'Máy này không nối được ra Internet để gadget gọi vào. Kiểm tra mạng của máy chủ AI.' }).catch(() => {}); } }
+        else { if (relayWarned) ctx.host.notify({ title: 'Máy chủ AI đã nối lại', body: 'Gadget gọi vào được rồi.' }).catch(() => {}); relayDownSince = 0; relayWarned = false; }
         await beat();
         ctx.job?.progress(0, `relay ${relay} · LAN ${lan} · ${live.size} online`);
         await new Promise((r) => {

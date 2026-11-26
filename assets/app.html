@@ -40,6 +40,33 @@
   .g .who { display: flex; gap: 14px; align-items: center; }
   .g .who svg { width: 56px; height: 56px; flex: none; }
   .g .name { font-size: 16.5px; font-weight: 650; }
+  .chain { margin: 10px 0 2px; font-size: 12px; min-width: 0; }
+  .chain-row { display: flex; align-items: center; flex-wrap: nowrap; min-width: 0; }
+  .chain .nd { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; flex: none; max-width: 34%; }
+  .chain .nd b { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--ui-border); background: var(--ui-surface); color: var(--ui-muted-fg); }
+  .chain .nd b svg { width: 13px; height: 13px; fill: currentColor; }
+  .chain .nd span { color: var(--ui-muted-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .chain .nd.ok b { border-color: var(--ui-good); color: var(--ui-good); }
+  .chain .nd.bad b { border-color: var(--ui-bad); color: var(--ui-bad); }
+  .chain .nd.warn b { border-color: var(--ui-warn, #c98a00); color: var(--ui-warn, #c98a00); }
+  .chain .ln { flex: 1; min-width: 14px; height: 0; border-top: 2px solid var(--ui-border); margin: 0 4px 16px; position: relative; }
+  .chain .ln.ok { border-top-color: var(--ui-good); }
+  .chain .ln.bad { border-top: 2px dashed var(--ui-bad); }
+  .chain .ln.bad::after { content: '✕'; position: absolute; left: 50%; top: -9px; transform: translateX(-50%); font-size: 11px; color: var(--ui-bad); background: var(--ui-surface); padding: 0 2px; line-height: 1; }
+  .chain-why { font-size: 12px; color: var(--ui-bad); margin-top: 2px; }
+  .health { border: 1px solid var(--ui-border); border-radius: 14px; padding: 14px 16px; margin-bottom: 18px; background: var(--ui-surface); }
+  .health.bad { border-color: color-mix(in srgb, var(--ui-bad) 55%, var(--ui-border)); }
+  .health.warn { border-color: color-mix(in srgb, var(--ui-warn, #c98a00) 55%, var(--ui-border)); }
+  .h-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .h-head b { font-size: 15px; }
+  .h-sum { flex: 1; font-size: 13.5px; color: var(--ui-muted-fg); }
+  .h-rows { display: grid; gap: 8px; margin-top: 10px; }
+  .h-row { display: grid; grid-template-columns: 12px 1fr; gap: 10px; align-items: start; font-size: 14px; line-height: 1.45; }
+  .h-row i { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; background: var(--ui-border); }
+  .h-row.ok i { background: var(--ui-good); } .h-row.bad i { background: var(--ui-bad); } .h-row.warn i { background: var(--ui-warn, #c98a00); } .h-row.off i { background: var(--ui-muted-fg); }
+  .h-row .sub { display: block; color: var(--ui-muted-fg); font-size: 12.5px; }
+  .h-row.bad .sub { color: var(--ui-bad); }
+  #hCheckOut { margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ui-border) 35%, transparent); }
   .state { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ui-muted-fg); margin-top: 3px; }
   .state i { width: 8px; height: 8px; border-radius: 50%; background: var(--ui-border); }
   .state.on i { background: var(--ui-good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-good) 20%, transparent); }
@@ -192,6 +219,12 @@
 
   <!-- My gadgets -->
   <section data-pane="home">
+    <div class="health" id="health">
+      <div class="h-head"><b id="hTitle" data-t="Status|Tình trạng"></b><span class="h-sum" id="hSum"></span>
+        <button class="btn sm" id="hCheck" data-t="Check now|Kiểm tra ngay"></button></div>
+      <div class="h-rows" id="hRows"></div>
+      <div class="small" id="hCheckOut" hidden></div>
+    </div>
     <div id="remoteNote" class="small muted" hidden style="margin-bottom:12px"></div>
     <div id="askList"></div>
     <div id="emptyHome" class="empty" hidden>
@@ -542,6 +575,8 @@ function show(v) {
   document.querySelectorAll('[data-pane]').forEach((p) => (p.hidden = p.dataset.pane !== v));
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
   aicw.setState({ ...(aicw.getState() || {}), view: v });
+  S.view = v;
+  if (v === 'home') loadHealth().catch(() => {});
   if (v === 'chat') loadChat();
   if (v === 'settings') loadServer();
 }
@@ -571,6 +606,7 @@ async function loadDevices() {
     const on = !!d.online;
     return `<div class="g"><div class="who"><svg viewBox="0 0 200 210">${dou(on ? '#ffe9a8' : '#8b8799', !on)}</svg><div><div class="name">${esc(d.name || 'Dou')}</div>
       <div class="state ${on ? 'on' : ''}"><i></i>${on ? T('Ready to talk|Sẵn sàng trò chuyện') : T('Asleep or offline|Đang ngủ hoặc ngoại tuyến')}${!on && d.lastSeen ? ' · ' + ago(d.lastSeen) : ''}</div></div></div>
+      <div class="chain" data-chain="${esc(d.mac)}">${chainHtml(d.mac)}</div>
       <div class="meta">${T('Talks to|Trò chuyện với')} <b>${esc(agentName(d.agent || def))}</b>${d.lastTurnAt ? `<br>${T('Last chat|Lần nói gần nhất')}: ${ago(d.lastTurnAt)}` : ''}</div>
       ${d.lastError && (!d.lastTurnAt || d.lastError.at > d.lastTurnAt) ? `<div class="small" style="color:var(--ui-bad);line-height:1.45" title="${esc(d.lastError.detail || '')}">⚠ ${esc(d.lastError.text)} · ${ago(d.lastError.at)}</div>` : ''}
       <div class="acts"><button class="btn" data-chat="${esc(d.mac)}">${T('Conversation|Hội thoại')}</button><button class="btn" data-edit="${esc(d.mac)}">${T('Edit|Sửa')}</button><button class="btn link" data-del="${esc(d.mac)}">${T('Remove|Gỡ')}</button></div></div>`;
@@ -648,6 +684,100 @@ $('#eSend').onclick = async () => {
 $('#eBleBtn').onclick = () => { EDIT = null; $('#dlgEdit').close(); openWizard(); };
 function bindAdd() { document.querySelectorAll('[data-add]').forEach((b) => (b.onclick = openWizard)); }
 
+
+// ---------- status: one glance at everything the gadgets need ----------
+const H = { last: null, busy: false };
+function hRow(cls, text, sub) { return `<div class="h-row ${cls}"><i></i><div>${text}${sub ? `<span class="sub">${sub}</span>` : ''}</div></div>`; }
+function renderHealth(r) {
+  H.last = r;
+  const rows = []; let worst = 'ok';
+  const bump = (c) => { if (c === 'bad' || (c === 'warn' && worst === 'ok')) worst = c; };
+  const host = r.host;
+  if (r.role === 'setup') {
+    const l = r.link || {};
+    const name = esc(l.label || T('the AI computer|máy chủ AI'));
+    if (l.ok) rows.push(hRow('ok', T(`This computer reaches <b>${name}</b>|Máy này liên lạc được với máy chủ AI <b>${name}</b>`), T(`answered in ${l.ms} ms|trả lời sau ${l.ms} ms`)));
+    else { bump('bad'); rows.push(hRow('bad', T(`This computer cannot reach <b>${name}</b>|Máy này không liên lạc được với máy chủ AI <b>${name}</b>`), (l.unlinked ? esc(l.error) : T('Is AICoworker open on that computer, with Internet?|Máy đó có đang mở AICoworker và có Internet không?')) + (l.lastOkAt ? ' · ' + T('last reached|lần cuối liên lạc được') + ' ' + ago(l.lastOkAt) : ''))); }
+  }
+  if (host) {
+    const b = host.bridge || {};
+    const where = r.role === 'setup' ? T(`on ${esc(host.name)}|trên ${esc(host.name)}`) : T('on this computer|trên máy này');
+    if (!b.enabled) { bump('bad'); rows.push(hRow('bad', T(`The gadget connection is turned off ${where}|Kết nối gadget đang tắt ${where}`), T('Turn it on in Settings.|Bật lại trong Cài đặt.'))); }
+    else if (!b.running) { bump('bad'); rows.push(hRow('bad', T(`The gadget connection is not running ${where}|Kết nối gadget chưa chạy ${where}`), T('Press Restart in Settings, or reopen AICoworker there.|Bấm Khởi động lại trong Cài đặt, hoặc mở lại AICoworker ở máy đó.'))); }
+    else if (b.relay !== 'up') { bump('warn'); rows.push(hRow('warn', T(`Gadgets away from home cannot call in yet ${where}|Gadget ở xa chưa gọi vào được ${where}`), T('Waiting for the Internet relay…|Đang chờ kết nối Internet…'))); }
+    else rows.push(hRow('ok', T(`The gadget connection is running ${where}|Kết nối gadget đang chạy ${where}`), b.since ? T('since|từ') + ' ' + ago(b.since) : ''));
+    const a = host.agent || {};
+    if (a.ok === false) { bump('bad'); rows.push(hRow('bad', T('The assistant is not answering|Trợ lý đang không trả lời được'), esc(a.error || '') + (a.failAt ? ' · ' + ago(a.failAt) : '') + (a.okAt ? ' · ' + T('last worked|lần cuối chạy được') + ' ' + ago(a.okAt) : ''))); }
+    else if (a.ok === true) rows.push(hRow('ok', T('The assistant answers|Trợ lý trả lời bình thường'), T('last answer|lần trả lời gần nhất') + ' ' + ago(a.okAt)));
+    else rows.push(hRow('off', T('The assistant has not been asked yet|Chưa hỏi thử trợ lý lần nào'), T('Press Check now.|Bấm Kiểm tra ngay.')));
+    const gs = host.gadgets || [];
+    if (!gs.length) rows.push(hRow('off', T('No gadget yet|Chưa có gadget nào'), ''));
+    for (const g of gs) {
+      const n = `<b>${esc(g.name || 'Dou')}</b>`;
+      if (g.online) rows.push(hRow(g.lastError ? 'warn' : 'ok', T(`${n} is connected|${n} đang kết nối`) + (g.ssid ? ' · Wi-Fi ' + esc(g.ssid) : ''), g.lastError ? T('last try|lần nói gần nhất') + ': ' + esc(g.lastError.text) + ' · ' + ago(g.lastError.at) : g.lastTurnAt ? T('last chat|lần nói gần nhất') + ' ' + ago(g.lastTurnAt) : ''));
+      else rows.push(hRow('off', T(`${n} is asleep or offline|${n} đang ngủ hoặc mất kết nối`), g.lastSeen ? T('last seen|thấy lần cuối') + ' ' + ago(g.lastSeen) : ''));
+      if (g.online && g.lastError) bump('warn');
+    }
+  }
+  $('#hRows').innerHTML = rows.join('');
+  renderChains();
+  $('#health').className = 'health ' + (worst === 'ok' ? '' : worst);
+  $('#hSum').textContent = worst === 'ok' ? T('Everything works|Mọi thứ đang chạy tốt') : worst === 'bad' ? T('Something is broken, see below|Có chỗ đang lỗi, xem bên dưới') : T('Works, with a warning|Đang chạy, có cảnh báo');
+  $('#hSum').style.color = worst === 'bad' ? 'var(--ui-bad)' : worst === 'warn' ? 'var(--ui-warn, #c98a00)' : 'var(--ui-good)';
+}
+async function loadHealth(check) {
+  if (H.busy && !check) return;
+  H.busy = true;
+  try { renderHealth(await aicw.call('health', check ? { check: true } : {})); }
+  catch (e) { $('#hRows').innerHTML = hRow('bad', T('Could not read the status|Không đọc được tình trạng'), esc(e.message)); $('#health').className = 'health bad'; }
+  finally { H.busy = false; }
+}
+$('#hCheck').onclick = async () => {
+  const b = $('#hCheck'), out = $('#hCheckOut');
+  b.disabled = true; out.hidden = false; out.textContent = T('Asking the assistant one short question…|Đang hỏi thử trợ lý một câu ngắn…');
+  try {
+    const r = await aicw.call('health', { check: true });
+    renderHealth(r);
+    const c = r.check;
+    out.innerHTML = !c ? T('The AI computer could not be reached, so the assistant was not asked.|Không liên lạc được với máy chủ AI nên chưa hỏi được trợ lý.')
+      : c.ok ? T(`✓ The assistant answered in ${(c.ms / 1000).toFixed(1)} s.|✓ Trợ lý trả lời sau ${(c.ms / 1000).toFixed(1)} giây.`)
+      : `<span style="color:var(--ui-bad)">✗ ${esc(c.error)}</span><span class="sub" style="display:block;margin-top:4px;color:var(--ui-muted-fg);font-size:12px;word-break:break-word">${esc(c.detail || '')}</span>`;
+  } catch (e) { out.textContent = e.message; }
+  b.disabled = false;
+};
+
+// One line per gadget card: gadget — AI computer (+ assistant) — this setup computer.
+// Each link turns red with an ✕ where it is broken, so the owner sees WHERE it stops.
+const ICO = {
+  dou: '<svg viewBox="0 0 512 512"><path d="M256 48a208 208 0 1 1 0 416 208 208 0 1 1 0-416zM176 208a32 32 0 1 0 0 64 32 32 0 1 0 0-64zm160 0a32 32 0 1 0 0 64 32 32 0 1 0 0-64z"/></svg>',
+  ai: '<svg viewBox="0 0 640 512"><path d="M128 32C92.7 32 64 60.7 64 96v256h64V96h384v256h64V96c0-35.3-28.7-64-64-64H128zM19.2 384C8.6 384 0 392.6 0 403.2C0 445.6 34.4 480 76.8 480h486.4c42.4 0 76.8-34.4 76.8-76.8c0-10.6-8.6-19.2-19.2-19.2H19.2z"/></svg>',
+  me: '<svg viewBox="0 0 512 512"><path d="M64 0C28.7 0 0 28.7 0 64v288c0 35.3 28.7 64 64 64h112l-10.7 32H96c-17.7 0-32 14.3-32 32s14.3 32 32 32h320c17.7 0 32-14.3 32-32s-14.3-32-32-32h-69.3L336 416h112c35.3 0 64-28.7 64-64V64c0-35.3-28.7-64-64-64H64zm384 64v224H64V64h384z"/></svg>',
+};
+function chainHtml(mac) {
+  const r = H.last; const d = S.devices.find((x) => x.mac === mac) || {};
+  if (!r || !r.host && r.role !== 'setup') return '';
+  const host = r.host, setup = r.role === 'setup', link = r.link || {};
+  const g = (host?.gadgets || []).find((x) => x.mac === mac);
+  const b = host?.bridge || {}, a = host?.agent || {};
+  const hostName = setup ? (link.label || host?.name || T('AI computer|Máy chủ AI')) : T('This computer|Máy này');
+  const why = [];
+  // gadget node + link to the AI computer
+  const gOn = host ? !!(g?.online) : !!d.online;
+  const bridgeUp = host ? b.running && b.enabled : false;
+  let l1 = host ? (gOn ? 'ok' : 'bad') : '';
+  if (host && !gOn) why.push(!bridgeUp ? T('the AI computer is not listening for gadgets|máy chủ AI chưa bật kết nối gadget') : T('the gadget is asleep, off, or without Wi-Fi|gadget đang ngủ, tắt hoặc mất Wi-Fi'));
+  // AI computer node (its assistant)
+  let aiCls = !host ? 'bad' : !bridgeUp ? 'bad' : a.ok === false ? 'bad' : a.ok === true ? 'ok' : 'warn';
+  if (host && bridgeUp && a.ok === false) why.push(T('the assistant on the AI computer is failing: |trợ lý trên máy chủ AI đang lỗi: ') + (a.error || ''));
+  // setup link
+  let l2 = '';
+  if (setup) { l2 = link.ok ? 'ok' : 'bad'; if (!link.ok) why.unshift(T('this computer cannot reach the AI computer|máy này không liên lạc được với máy chủ AI')); }
+  const node = (cls, ico, label) => `<div class="nd ${cls}"><b>${ico}</b><span>${esc(label)}</span></div>`;
+  let html = node(gOn ? 'ok' : host ? 'bad' : '', ICO.dou, d.name || 'Dou') + `<div class="ln ${l1}"></div>` + node(aiCls, ICO.ai, hostName);
+  if (setup) html += `<div class="ln ${l2}"></div>` + node(link.ok ? 'ok' : 'bad', ICO.me, T('This computer|Máy này'));
+  return `<div class="chain-row">${html}</div>` + (why.length ? `<div class="chain-why">✕ ${esc(why[0])}</div>` : '');
+}
+function renderChains() { document.querySelectorAll('[data-chain]').forEach((el) => { el.innerHTML = chainHtml(el.dataset.chain); }); }
 // ---------- add-a-gadget wizard ----------
 const W = { step: null, scanning: false, picked: null, job: null, nets: [], ssid: '', usb: null, flashedMac: '', deadline: 0, tick: null, retry: false };
 const ORDER = ['find', 'confirm', 'wifi', 'done'];
@@ -982,10 +1112,12 @@ aicw.call('agents', {}).then((r) => {
 }).catch(() => refresh());
 show((aicw.getState() || {}).view || 'home');
 aicw.on('event:devices', () => loadDevices().catch(() => {}));
-aicw.on('event:bridge', () => loadStatus().catch(() => {}));
+aicw.on('event:bridge', () => { loadStatus().catch(() => {}); loadHealth().catch(() => {}); });
 aicw.on('event:links', () => loadLinks().catch(() => {}));
 aicw.on('visible', refresh);
 setInterval(() => { if (aicw.visible !== false && $('#wiz').hidden) refresh(); }, 15000);
+loadHealth().catch(() => {});
+setInterval(() => { if (aicw.visible !== false && S.view === 'home') loadHealth().catch(() => {}); }, 15000);
 } catch (e) { console.error('page start', e); document.body.insertAdjacentHTML('beforeend', '<pre style="color:#c00;padding:16px">' + String(e && e.stack || e) + '</pre>'); }
 })();
 
