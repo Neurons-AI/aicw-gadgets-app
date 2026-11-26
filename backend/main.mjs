@@ -7,7 +7,7 @@
 // "ensureBridge" (schedule + app.ready trigger) restarts it when it is not running.
 import crypto from 'node:crypto';
 import http from 'node:http';
-import { identity, runHost, makeChannel } from './relay.mjs';
+import { identity, runHost, makeChannel, askHost } from './relay.mjs';
 import { RATE, pcmToWav, wavToPcm16, speakable } from './audio.mjs';
 import { CATALOG, boardsForUsb, latestRelease, imagesFor } from './firmware.mjs';
 import * as ble from './ble.mjs';
@@ -193,6 +193,17 @@ function serveGadget(ctx, ch, via, live) {
   ch.onMessage(async (m) => {
     if (Buffer.isBuffer(m)) { if (st.turn != null && st.allowed) st.pcm.push(m); return; }
     let j; try { j = JSON.parse(m); } catch { return; }
+    if (j.type === 'setup_hello') {
+      // A setup computer linking to this AI host (it pasted this computer's code).
+      const id = String(j.id || '').slice(0, 80), name = String(j.name || 'Máy tính').slice(0, 60);
+      const links = (await ctx.store.get('setupLinks')) || {}; // aicw:shared
+      if (links[id]?.removed) { send({ type: 'setup_refused', text: 'Máy này đã bị ngắt kết nối' }); ch.close(); return; }
+      links[id] = { id, name, firstAt: links[id]?.firstAt || Date.now(), lastAt: Date.now() };
+      await ctx.store.set('setupLinks', links); // aicw:shared
+      ctx.events.emit('links', {}, { to: 'all' });
+      send({ type: 'setup_ok', name: await computerName() });
+      ch.close(); return;
+    }
     if (j.type === 'hello') {
       st.mac = normMac(j.mac) || normMac(ch.id);
       const s = await settings(ctx);
@@ -318,9 +329,42 @@ export const commands = {
     const host = parseConnectCode(a.code);
     const idn = await hostIdentity(ctx);
     const self = host === 'relay:' + idn.id;
-    const t = self ? null : { host, label: String(a.label || nameInCode(a.code) || 'Máy tính khác').slice(0, 60), at: Date.now() };
+    let hostName = '';
+    if (!self && host.startsWith('relay:')) {
+      // Introduce this computer to the AI host: it shows up there and can be disconnected.
+      try {
+        const r = await askHost(idn, host.slice(6), { type: 'setup_hello', id: idn.id, name: await computerName() });
+        if (r.type === 'setup_refused') throw new Error('Máy kia đã ngắt kết nối với máy này. Trên máy kia, kết nối lại trong AICW Gadgets.');
+        hostName = r.name || '';
+      } catch (e) {
+        if (/offline/.test(e.message)) throw new Error('Không liên lạc được với máy kia. Kiểm tra máy đó đang mở AICoworker và AICW Gadgets đang bật kết nối.');
+        throw e;
+      }
+    }
+    const t = self ? null : { host, label: String(a.label || hostName || nameInCode(a.code) || 'Máy tính khác').slice(0, 60), at: Date.now() };
     if (t) await ctx.store.set('targetHost', t); else await ctx.store.delete('targetHost'); // aicw:shared
     return { target: await targetHost(ctx) };
+  },
+
+  async setupLinks(_a, ctx) {
+    const links = (await ctx.store.get('setupLinks')) || {}; // aicw:shared
+    return { links: Object.values(links).filter((l) => !l.removed).sort((a, b) => b.lastAt - a.lastAt) };
+  },
+  async removeSetupLink({ id }, ctx) {
+    ownerOnly(ctx);
+    const links = (await ctx.store.get('setupLinks')) || {}; // aicw:shared
+    if (links[id]) links[id] = { ...links[id], removed: Date.now() };
+    await ctx.store.set('setupLinks', links); // aicw:shared
+    return { ok: true };
+  },
+  async rotateCode(_a, ctx) {
+    // Make a new code for this computer: every setup computer and every gadget set up
+    // with the old code is cut off and must be set up again.
+    ownerOnly(ctx);
+    await ctx.store.set('relaySeed', crypto.randomBytes(32).toString('hex')); // aicw:shared
+    await ctx.store.set('setupLinks', {}); // aicw:shared
+    await ctx.store.set('restartBridge', Date.now()); // aicw:shared
+    return { ok: true };
   },
 
   // ---------- Bluetooth setup (gadget already has AICW firmware) ----------

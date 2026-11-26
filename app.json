@@ -3,7 +3,7 @@
   "name": "AICW Gadgets",
   "iconImage": "assets/icon.png",
   "icon": "📟",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "description": "Flash, set up and talk to AICW voice gadgets (Dou on an M5Stack StickS3 and other ESP32 boards) from your own AICoworker.",
   "window": {
     "entry": "assets/app.html",
@@ -467,6 +467,40 @@
               "type": "boolean"
             }
           }
+        }
+      },
+      "setupLinks": {
+        "description": "Setup computers linked to this AI host.",
+        "consumer": false,
+        "args": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      "removeSetupLink": {
+        "description": "Disconnect a setup computer.",
+        "mutating": true,
+        "consumer": false,
+        "args": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        }
+      },
+      "rotateCode": {
+        "description": "New connect code for this computer (cuts off every linked setup computer and gadget).",
+        "mutating": true,
+        "consumer": false,
+        "args": {
+          "type": "object",
+          "properties": {}
         }
       }
     }

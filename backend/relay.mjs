@@ -145,3 +145,55 @@ export function makeChannel(id, rawSend) {
     close() { if (closed) return; closed = true; for (const f of handlers.close) f(); },
   };
 }
+
+const G = { TOHOST: 0x10, FROMHOST: 0x13, HOSTGONE: 0x22 };
+const ROLE_GUEST = 2;
+/**
+ * Connect to a host as a guest (a setup computer talking to an AI host), send `hello`
+ * and resolve with the host's first JSON answer. Throws 'offline' when the host is not there.
+ */
+export async function askHost(idn, hostId, hello, { timeoutMs = 15000 } = {}) {
+  const host = new URL(RELAY).host;
+  const hpub = b32d(hostId);
+  const ws = new WebSocket(RELAY.replace(/\/+$/, '') + '/g/' + hostId);
+  ws.binaryType = 'arraybuffer';
+  const eph = crypto.generateKeyPairSync('x25519');
+  const ephp = eph.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32);
+  const init = Buffer.concat([Buffer.from([1, 1]), idn.pub, ephp, idn.sign(sha(CI, hpub, idn.pub, ephp))]);
+  let sess = null;
+  try {
+    return await new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('offline')), timeoutMs);
+      const done = (fn, v) => { clearTimeout(t); fn(v); };
+      ws.onerror = () => done(reject, new Error('offline'));
+      ws.onclose = () => done(reject, new Error('offline'));
+      ws.onmessage = (ev) => {
+        const data = Buffer.from(ev.data), ty = data[0], body = data.subarray(1);
+        if (ty === F.HELLO) ws.send(Buffer.concat([Buffer.from([F.AUTH, ROLE_GUEST]), idn.pub, hpub, idn.sign(sha(RA, Buffer.from([0]), host, Buffer.from([0]), body.subarray(1, 33), Buffer.from([ROLE_GUEST]), idn.pub, hpub))]));
+        else if (ty === F.AUTHOK) ws.send(Buffer.concat([Buffer.from([G.TOHOST]), init]));
+        else if (ty === F.AUTHERR || ty === G.HOSTGONE) done(reject, new Error('offline'));
+        else if (ty === F.PING) ws.send(Buffer.concat([Buffer.from([F.PONG]), body]));
+        else if (ty === G.FROMHOST && !sess) {
+          if (body[0] !== 2) return done(reject, new Error('refused'));
+          const hephp = body.subarray(2, 34);
+          if (!edVerify(hpub, body.subarray(34, 98), sha(CR, hpub, idn.pub, ephp, hephp))) return done(reject, new Error('bad host signature'));
+          const ss = crypto.diffieHellman({ privateKey: eph.privateKey, publicKey: crypto.createPublicKey({ key: Buffer.concat([X_SPKI, hephp]), format: 'der', type: 'spki' }) });
+          sess = new GuestSession(ss, ephp, hephp);
+          ws.send(Buffer.concat([Buffer.from([G.TOHOST]), sess.enc(Buffer.concat([Buffer.from([0]), Buffer.from(JSON.stringify(hello))]))]));
+        } else if (ty === G.FROMHOST && sess) {
+          try { const pt = sess.dec(body); if (pt[0] === 0) done(resolve, JSON.parse(pt.subarray(1).toString('utf8'))); } catch (e) { done(reject, e); }
+        }
+      };
+    });
+  } finally { try { ws.close(); } catch {} }
+}
+function b32d(s) {
+  let bits = 0, val = 0; const out = [];
+  for (const ch of String(s).toLowerCase()) { const i = B32.indexOf(ch); if (i < 0) continue; val = (val << 5) | i; bits += 5; if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; } }
+  return Buffer.from(out);
+}
+class GuestSession extends Session {
+  constructor(ss, guestEph, hostEph) { super(ss, guestEph, hostEph); [this.tx, this.rx] = [this.rx, this.tx]; }
+  enc(pt) { const n = this.nonce(this.sc++, 0); const c = crypto.createCipheriv('aes-256-gcm', this.tx, n); return Buffer.concat([Buffer.from([3]), n, c.update(pt), c.final(), c.getAuthTag()]); }
+  dec(fr) { const n = fr.subarray(1, 13); if (!n.equals(this.nonce(this.rc, 1))) throw new Error('out of order'); const body = fr.subarray(13); const d = crypto.createDecipheriv('aes-256-gcm', this.rx, n); d.setAuthTag(body.subarray(body.length - 16)); const pt = Buffer.concat([d.update(body.subarray(0, body.length - 16)), d.final()]); this.rc++; return pt; }
+}

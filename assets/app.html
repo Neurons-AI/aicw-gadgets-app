@@ -117,6 +117,20 @@
   .sec h3 { margin: 0 0 4px; font-size: 16px; font-weight: 650; }
   .sec > p { margin: 0 0 14px; color: var(--ui-muted-fg); font-size: 14px; line-height: 1.5; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+  .role { text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 16px; border: 1.5px solid var(--ui-border); border-radius: 16px; background: var(--ui-bg); color: inherit; font: inherit; cursor: pointer; }
+  .role b { font-size: 16px; } .role span:last-child { color: var(--ui-muted-fg); font-size: 13.5px; line-height: 1.45; }
+  .role-ico { font-size: 24px; }
+  .role.on { border-color: var(--ui-accent); background: color-mix(in srgb, var(--ui-accent) 7%, var(--ui-bg)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ui-accent) 20%, transparent); }
+  .sec-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .sec-head h3 { margin: 0; }
+  .tag { font-size: 12px; font-weight: 650; padding: 3px 10px; border-radius: 999px; }
+  .tag.ai { background: color-mix(in srgb, #22a55b 15%, transparent); color: #1b8a4b; }
+  .tag.setup { background: color-mix(in srgb, #f08a24 16%, transparent); color: #c2650f; }
+  .links { display: grid; gap: 8px; }
+  .link { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--ui-border); border-radius: 12px; background: var(--ui-bg); }
+  .link .grow { flex: 1; min-width: 0; }
+  .link .btn { padding: 7px 12px; font-size: 13.5px; }
   .pc { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--ui-border); border-radius: 14px; background: var(--ui-bg); }
   .pc-ico { font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--ui-accent) 10%, transparent); }
   .pc .grow { flex: 1; min-width: 0; }
@@ -172,70 +186,85 @@
 
   <!-- Settings -->
   <section data-pane="settings" hidden>
+    <!-- ROLE PICKER -->
     <div class="sec">
-      <h3 data-t="Assistant|Trợ lý"></h3>
-      <p data-t="Who answers your gadgets, in which language and voice.|Ai trả lời gadget, nói ngôn ngữ nào, giọng nào."></p>
-      <div class="fields" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))">
-        <label><span data-t="Assistant|Trợ lý"></span><select class="ui-select" id="sAgent"></select></label>
-        <label><span data-t="Language|Ngôn ngữ"></span><select class="ui-select" id="sLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
-      </div>
-      <div class="fields" style="margin-top:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))">
-        <div data-speech-picker="stt"></div>
-        <div data-speech-picker="tts"></div>
-      </div>
-      <div class="row" style="margin-top:16px"><button class="btn primary" id="sSave" data-t="Save|Lưu"></button><span class="muted small" id="sOut"></span></div>
-    </div>
-
-    <div class="sec">
-      <h3 data-t="Which computer your gadgets talk to|Gadget trò chuyện với máy tính nào"></h3>
-      <p data-t="The assistant that answers runs on that computer. Gadgets you add here are connected to it.|Trợ lý trả lời chạy trên máy đó. Gadget bạn thêm từ đây sẽ được nối vào máy đó."></p>
-      <div class="pc">
-        <div class="pc-ico">🖥️</div>
-        <div class="grow"><b id="pcName"></b><div class="small muted" id="pcSub"></div></div>
-        <span class="ui-badge good" id="pcBadge" data-t="Connected|Đang kết nối"></span>
-      </div>
-      <div class="row" style="margin-top:12px">
-        <button class="btn" id="bServer" data-t="Connect to another computer|Kết nối máy tính khác"></button>
-        <button class="btn" id="bServerSelf" hidden data-t="Disconnect, use this computer|Huỷ kết nối, dùng máy này"></button>
+      <h3 data-t="What this computer does|Máy này làm gì"></h3>
+      <p data-t="Pick one. You can change it any time.|Chọn một vai. Đổi lúc nào cũng được."></p>
+      <div class="roles">
+        <button class="role" id="roleAi"><span class="role-ico">🧠</span><b data-t="AI computer|Máy chủ AI"></b><span data-t="Runs the assistant. Gadgets talk to this computer.|Chạy trợ lý. Gadget trò chuyện với máy này."></span></button>
+        <button class="role" id="roleSetup"><span class="role-ico">📲</span><b data-t="Setup computer|Máy cài gadget"></b><span data-t="Only sets gadgets up. They talk to the assistant on another computer.|Chỉ dùng để cài gadget. Gadget trò chuyện với trợ lý trên máy khác."></span></button>
       </div>
     </div>
 
-    <div class="sec" id="shareSec">
-      <h3 data-t="Let another computer set up gadgets for this one|Cho máy khác cài gadget vào máy này"></h3>
-      <p data-t="Copy this code, then on the other computer open AICW Gadgets → Settings → Connect to another computer and paste it.|Sao chép mã này, rồi trên máy kia mở AICW Gadgets → Cài đặt → Kết nối máy tính khác và dán vào."></p>
-      <div class="codebox"><code id="myCode"></code><button class="btn" id="cpCode" data-t="Copy code|Sao chép mã"></button></div>
-    </div>
-
-    <div class="sec">
-      <h3 data-t="Connection|Kết nối"></h3>
-      <div class="pc">
-        <div class="pc-ico" id="cnIco"></div>
-        <div class="grow"><b id="cnTitle" data-t="Checking…|Đang kiểm tra…"></b><div class="small muted" id="cnSub"></div></div>
+    <!-- AI COMPUTER -->
+    <div id="secAi">
+      <div class="sec">
+        <div class="sec-head"><span class="tag ai" data-t="AI computer|Máy chủ AI"></span><h3 data-t="This computer answers your gadgets|Máy này trả lời gadget"></h3></div>
+        <div class="pc">
+          <div class="pc-ico" id="cnIco"></div>
+          <div class="grow"><b id="cnTitle" data-t="Checking…|Đang kiểm tra…"></b><div class="small muted" id="cnSub"></div></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="bOn" hidden data-t="Turn on|Bật"></button>
+          <button class="btn" id="bRestart2" hidden data-t="Restart|Khởi động lại"></button>
+          <button class="btn" id="bOff" hidden data-t="Turn off|Tắt"></button>
+        </div>
       </div>
-      <div class="row" style="margin-top:12px">
-        <button class="btn primary" id="bOn" hidden data-t="Turn on|Bật kết nối"></button>
-        <button class="btn" id="bRestart2" hidden data-t="Restart|Khởi động lại"></button>
-        <button class="btn" id="bOff" hidden data-t="Turn off|Tắt kết nối"></button>
-        <button class="btn" id="bUnlink" hidden data-t="Disconnect|Ngắt kết nối"></button>
+      <div class="sec">
+        <h3 data-t="Setup computers|Máy cài gadget đang nối vào"></h3>
+        <p data-t="Computers that set gadgets up for this one. Disconnect one and it can no longer add gadgets here.|Những máy dùng để cài gadget cho máy này. Ngắt một máy thì máy đó không thêm gadget vào đây được nữa."></p>
+        <div class="links" id="linkList"></div>
+        <div style="margin-top:14px">
+          <div class="small muted" style="margin-bottom:6px" data-t="To connect a setup computer, copy this code there (Settings → Setup computer).|Muốn nối một máy cài gadget: sao chép mã này sang máy đó (Cài đặt → Máy cài gadget)."></div>
+          <div class="codebox"><code id="myCode"></code><button class="btn" id="cpCode" data-t="Copy code|Sao chép mã"></button></div>
+          <button class="btn link" id="bRotate" style="margin-top:8px" data-t="Make a new code (disconnects every setup computer and gadget)|Tạo mã mới (ngắt mọi máy cài và gadget)"></button>
+        </div>
       </div>
-      <p class="small muted" id="cnHint" hidden style="margin:10px 0 0" data-t="If gadgets stop answering, press Restart. It takes about 20 seconds.|Nếu gadget không trả lời, bấm Khởi động lại. Mất khoảng 20 giây."></p>
-    </div>
+    <div class="sec">
+        <h3 data-t="Assistant|Trợ lý"></h3>
+        <p data-t="Who answers your gadgets, in which language and voice.|Ai trả lời gadget, nói ngôn ngữ nào, giọng nào."></p>
+        <div class="fields" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))">
+          <label><span data-t="Assistant|Trợ lý"></span><select class="ui-select" id="sAgent"></select></label>
+          <label><span data-t="Language|Ngôn ngữ"></span><select class="ui-select" id="sLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
+        </div>
+        <div class="fields" style="margin-top:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))">
+          <div data-speech-picker="stt"></div>
+          <div data-speech-picker="tts"></div>
+        </div>
+        <div class="row" style="margin-top:16px"><button class="btn primary" id="sSave" data-t="Save|Lưu"></button><span class="muted small" id="sOut"></span></div>
+      </div>
 
     <div class="sec">
-      <h3 data-t="New gadgets|Gadget mới"></h3>
-      <label class="sw" style="border-top:0;padding-top:4px"><input type="checkbox" id="sOpen"><div><b data-t="Accept new gadgets automatically|Tự động chấp nhận gadget mới"></b><span class="muted small" data-t="On: a gadget set up for this computer can talk right away. Off: you allow each new gadget here first.|Bật: gadget được cài cho máy này trò chuyện được ngay. Tắt: bạn phải cho phép từng gadget mới ở đây."></span></div></label>
+        <h3 data-t="New gadgets|Gadget mới"></h3>
+        <label class="sw" style="border-top:0;padding-top:4px"><input type="checkbox" id="sOpen"><div><b data-t="Accept new gadgets automatically|Tự động chấp nhận gadget mới"></b><span class="muted small" data-t="On: a gadget set up for this computer can talk right away. Off: you allow each new gadget here first.|Bật: gadget được cài cho máy này trò chuyện được ngay. Tắt: bạn phải cho phép từng gadget mới ở đây."></span></div></label>
+      </div>
+
+      <div class="sec">
+        <details class="adv">
+          <summary data-t="Advanced|Nâng cao"></summary>
+          <div><div class="kv" id="advKv"></div>
+          <label class="sw"><input type="checkbox" id="sRelay"><div><b data-t="Reachable from anywhere|Kết nối từ mọi nơi"></b><span class="muted small" data-t="Through the AICW relay, end-to-end encrypted.|Qua relay AICW, mã hoá đầu-cuối."></span></div></label>
+          <label class="sw"><input type="checkbox" id="sLan"><div><b data-t="Reachable on the same Wi-Fi|Kết nối trong cùng Wi-Fi"></b></div></label>
+          <div class="row" style="margin-top:12px"><button class="btn" id="bRestart" data-t="Restart the connection|Khởi động lại kết nối"></button><button class="btn" id="bSaveAdv" data-t="Save|Lưu"></button></div></div>
+        </details>
+      </div>
     </div>
 
-    <div class="sec">
-      <details class="adv">
-        <summary data-t="Advanced|Nâng cao"></summary>
-        <div id="advConn"><div class="kv" id="advKv"></div>
-        <label class="sw"><input type="checkbox" id="sRelay"><div><b data-t="Reachable from anywhere|Kết nối từ mọi nơi"></b><span class="muted small" data-t="Through the AICW relay, end-to-end encrypted.|Qua relay AICW, mã hoá đầu-cuối."></span></div></label>
-        <label class="sw"><input type="checkbox" id="sLan"><div><b data-t="Reachable on the same Wi-Fi|Kết nối trong cùng Wi-Fi"></b></div></label>
-        <div class="row" style="margin-top:12px"><button class="btn" id="bRestart" data-t="Restart the connection|Khởi động lại kết nối"></button><button class="btn" id="bSaveAdv" data-t="Save|Lưu"></button></div></div>
-        <p class="small muted" id="advRemote" style="margin:0" data-t="Nothing to set here: this computer only sets gadgets up.|Không có gì để chỉnh: máy này chỉ dùng để cài gadget."></p>
-      </details>
+    <!-- SETUP COMPUTER -->
+    <div id="secSetup" hidden>
+      <div class="sec">
+        <div class="sec-head"><span class="tag setup" data-t="Setup computer|Máy cài gadget"></span><h3 data-t="Gadgets you add here talk to|Gadget thêm từ đây sẽ trò chuyện với"></h3></div>
+        <div class="pc">
+          <div class="pc-ico dot-orange" id="tgIco"></div>
+          <div class="grow"><b id="pcName"></b><div class="small muted" id="pcSub"></div></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="bServer" data-t="Connect to another AI computer|Nối với máy chủ AI khác"></button>
+          <button class="btn" id="bServerSelf" data-t="Disconnect|Ngắt kết nối"></button>
+        </div>
+      </div>
     </div>
+
   </section>
 </div>
 
@@ -311,12 +340,12 @@
 </div>
 
 <dialog id="dlgServer">
-  <h3 data-t="Use another computer|Dùng máy tính khác"></h3>
-  <p class="muted small" data-t="Gadgets you set up here will talk to the assistant on that computer. On that computer open AICW Gadgets → Settings → Copy, then paste here.|Gadget cài từ máy này sẽ trò chuyện với trợ lý trên máy kia. Trên máy kia mở AICW Gadgets → Cài đặt → Sao chép, rồi dán vào đây."></p>
+  <h3 data-t="Connect to an AI computer|Nối với máy chủ AI"></h3>
+  <p class="muted small" data-t="On the AI computer open AICW Gadgets → Settings → Copy code, then paste it here. This computer then only sets gadgets up.|Trên máy chủ AI mở AICW Gadgets → Cài đặt → Sao chép mã, rồi dán vào đây. Sau đó máy này chỉ dùng để cài gadget."></p>
   <div class="fields"><label><span data-t="Code from the other computer|Mã của máy kia"></span><input class="ui-input" id="srvCode" maxlength="300"></label>
   <label><span data-t="Name (optional)|Tên gọi (không bắt buộc)"></span><input class="ui-input" id="srvLabel" maxlength="60" data-tp="Taken from the code if empty|Để trống sẽ lấy tên trong mã"></label></div>
   <div class="err" id="srvErr"></div>
-  <div class="actions"><button class="btn primary" id="srvSave" data-t="Use this computer|Dùng máy này"></button><button class="btn" id="srvCancel" data-t="Cancel|Huỷ"></button></div>
+  <div class="actions"><button class="btn primary" id="srvSave" data-t="Connect|Nối"></button><button class="btn" id="srvCancel" data-t="Cancel|Huỷ"></button></div>
 </dialog>
 
 <script>
@@ -607,24 +636,11 @@ async function loadStatus() {
     $('#sOpen').checked = s.open !== false; $('#sRelay').checked = !!s.relay; $('#sLan').checked = !!s.lan;
   }
   const on = !!b.running && b.version === st.codeVersion, old = !!b.running && b.version !== st.codeVersion;
-  const remote = S.target && !S.target.self;
-  $('#cnIco').className = 'pc-ico dot-' + (remote ? 'orange' : on ? 'green' : old || S.restarting ? 'yellow' : 'red');
-  $('#cnIco').textContent = '';
-  if (remote) {
-    const name = S.target.label || T('another computer|máy khác');
-    $('#cnTitle').textContent = T(`Connected through ${name}|Đang kết nối qua máy ${name}`);
-    $('#cnSub').textContent = T(`Gadgets talk to the assistant on ${name}. This computer only sets them up.|Gadget trò chuyện với trợ lý trên ${name}. Máy này chỉ dùng để cài gadget.`);
-  } else {
-    $('#cnTitle').textContent = on ? T('Working|Đang hoạt động') : old || S.restarting ? T('Restarting…|Đang khởi động lại…') : s.enabled === false ? T('Turned off|Đang tắt') : T('Not running|Chưa chạy');
-    $('#cnSub').textContent = on ? T(`Since ${ago(b.startedAt)} · ${(b.online || []).length} gadget(s) connected|Từ ${ago(b.startedAt)} · ${(b.online || []).length} gadget đang kết nối`) : '';
-  }
+  $('#cnIco').className = 'pc-ico dot-' + (on ? 'green' : old || S.restarting ? 'yellow' : 'red');
+  $('#cnTitle').textContent = on ? T('On: gadgets can talk to this computer|Đang bật: gadget trò chuyện được với máy này') : old || S.restarting ? T('Starting…|Đang khởi động…') : T('Off: gadgets cannot reach this computer|Đang tắt: gadget không nối được vào máy này');
+  $('#cnSub').textContent = on ? T(`Since ${ago(b.startedAt)} · ${(b.online || []).length} gadget(s) online|Từ ${ago(b.startedAt)} · ${(b.online || []).length} gadget đang trực tuyến`) : '';
   const running = on || old;
-  $('#bUnlink').hidden = !remote;
-  $('#bUnlink').textContent = remote ? T(`Disconnect from ${S.target.label || 'that computer'}|Ngắt kết nối với ${S.target.label || 'máy kia'}`) : '';
-  $('#bOn').hidden = !!remote || running || !!S.restarting;
-  $('#bOff').hidden = !!remote || !running;
-  $('#bRestart2').hidden = !!remote || !running; $('#cnHint').hidden = !!remote || !running;
-  $('#advConn').hidden = !!remote; $('#advRemote').hidden = !remote;
+  $('#bOn').hidden = running || !!S.restarting; $('#bOff').hidden = !running; $('#bRestart2').hidden = !running;
   const yes = T('working|đang chạy'), no = T('off|tắt');
   $('#advKv').innerHTML = [
     [T('Connection|Kết nối'), b.running ? T(`on since ${ago(b.startedAt)}|bật từ ${ago(b.startedAt)}`) : s.enabled === false ? no : T('starting|đang khởi động')],
@@ -635,22 +651,48 @@ async function loadStatus() {
 async function loadServer() {
   const r = await aicw.call('connectCode', {});
   S.target = r.target; S.code = r.code; S.me = r.me;
+  const setup = !r.target.self;
+  $('#roleAi').classList.toggle('on', !setup); $('#roleSetup').classList.toggle('on', setup);
+  $('#secAi').hidden = setup; $('#secSetup').hidden = !setup;
   $('#myCode').textContent = r.code;
-  const self = !!r.target.self;
-  $('#pcName').textContent = self ? `${r.me} · ${T('this computer|máy này')}` : (r.target.label || T('Another computer|Máy tính khác'));
-  $('#pcSub').textContent = self ? T('Gadgets talk to the assistant on this computer.|Gadget trò chuyện với trợ lý trên máy này.') : T(`Connected ${ago(r.target.at)}. This computer only sets gadgets up.|Kết nối ${ago(r.target.at)}. Máy này chỉ dùng để cài gadget.`);
-  $('#bServerSelf').hidden = self; $('#shareSec').hidden = !self;
-  $('#bServer').textContent = self ? T('Connect to another computer|Kết nối máy tính khác') : T('Change computer|Đổi máy tính khác');
+  if (setup) {
+    $('#pcName').textContent = T(`AI computer: ${r.target.label || 'another computer'}|Máy chủ AI: ${r.target.label || 'máy khác'}`);
+    $('#pcSub').textContent = T(`Connected ${ago(r.target.at)}.|Đã nối ${ago(r.target.at)}.`);
+    $('#bServerSelf').textContent = T(`Disconnect from ${r.target.label || 'it'}|Ngắt kết nối với ${r.target.label || 'máy đó'}`);
+  } else {
+    loadLinks().catch(() => {});
+  }
 }
+async function loadLinks() {
+  const { links } = await aicw.call('setupLinks', {});
+  $('#linkList').innerHTML = links.length ? links.map((l) => `<div class="link"><span style="font-size:20px">📲</span><div class="grow"><b>${esc(l.name)}</b><div class="small muted">${T('Connected|Nối')} ${ago(l.firstAt)}</div></div><button class="btn" data-unlink="${esc(l.id)}">${T('Disconnect|Ngắt kết nối')}</button></div>`).join('')
+    : `<div class="small muted">${T('No setup computer yet.|Chưa có máy cài gadget nào.')}</div>`;
+  $('#linkList').querySelectorAll('[data-unlink]').forEach((b) => (b.onclick = async () => {
+    const ok = aicw.ui?.confirm ? await aicw.ui.confirm(T('Disconnect this computer? It can no longer add gadgets here. Gadgets already added keep working.|Ngắt kết nối máy này? Máy đó không thêm gadget vào đây được nữa. Gadget đã thêm vẫn dùng bình thường.')) : true;
+    if (ok) aicw.call('removeSetupLink', { id: b.dataset.unlink }).then(() => { toast(T('Disconnected|Đã ngắt kết nối'), 'good'); loadLinks(); });
+  }));
+}
+$('#roleAi').onclick = async () => {
+  if (S.target && S.target.self) return;
+  const ok = aicw.ui?.confirm ? await aicw.ui.confirm(T('Make this computer the AI computer? It stops using the other one and answers gadgets itself.|Đổi máy này thành máy chủ AI? Máy sẽ ngắt khỏi máy chủ kia và tự trả lời gadget.')) : true;
+  if (!ok) return;
+  await aicw.call('setTarget', {}); await aicw.call('startBridge', {}).catch(() => {}); aicw.jobs.start('bridge', {}).catch(() => {});
+  toast(T('This is now the AI computer|Máy này giờ là máy chủ AI'), 'good'); await loadServer(); loadStatus().catch(() => {});
+};
+$('#roleSetup').onclick = () => { if (S.target && !S.target.self) return; $('#bServer').click(); };
+$('#bRotate').onclick = async () => {
+  const ok = aicw.ui?.confirm ? await aicw.ui.confirm(T('Make a new code? Every setup computer and every gadget set up with the old code is cut off and must be set up again.|Tạo mã mới? Mọi máy cài gadget và mọi gadget đã cài bằng mã cũ sẽ bị ngắt và phải cài lại.')) : false;
+  if (ok) aicw.call('rotateCode', {}).then(() => { toast(T('New code made|Đã tạo mã mới'), 'good'); loadServer(); });
+};
 $('#cpCode').onclick = () => { (aicw.copy || ((t) => navigator.clipboard.writeText(t)))(S.code); toast(T('Copied|Đã sao chép'), 'good'); };
 $('#bServer').onclick = () => { $('#srvErr').textContent = ''; $('#srvCode').value = ''; $('#dlgServer').showModal(); };
 $('#srvCancel').onclick = () => $('#dlgServer').close();
-$('#srvSave').onclick = () => aicw.call('setTarget', { code: $('#srvCode').value, label: $('#srvLabel').value.trim() })
-  .then(() => { $('#dlgServer').close(); toast(T('Saved|Đã lưu'), 'good'); loadServer(); })
+$('#srvSave').onclick = () => ($('#srvErr').textContent = T('Contacting that computer…|Đang liên lạc với máy kia…'), aicw.call('setTarget', { code: $('#srvCode').value, label: $('#srvLabel').value.trim() }))
+  .then(async () => { $('#dlgServer').close(); toast(T('Connected|Đã nối'), 'good'); await aicw.call('stopBridge', {}).catch(() => {}); loadServer(); loadStatus().catch(() => {}); })
   .catch((e) => ($('#srvErr').textContent = e.message));
 $('#bServerSelf').onclick = async () => {
   const ok = aicw.ui?.confirm ? await aicw.ui.confirm(T('Disconnect from that computer? Gadgets you add from now on talk to this computer. Gadgets already set up keep talking to the other one until you set them up again.|Huỷ kết nối với máy kia? Gadget thêm từ giờ sẽ trò chuyện với máy này. Gadget đã cài trước vẫn nói chuyện với máy kia cho tới khi cài lại.')) : true;
-  if (ok) aicw.call('setTarget', {}).then(async () => { toast(T('Disconnected|Đã ngắt kết nối'), 'good'); await loadServer(); loadStatus().catch(() => {}); });
+  if (ok) aicw.call('setTarget', {}).then(async () => { toast(T('Disconnected. This is now the AI computer.|Đã ngắt. Máy này giờ là máy chủ AI.'), 'good'); await aicw.call('startBridge', {}).catch(() => {}); aicw.jobs.start('bridge', {}).catch(() => {}); await loadServer(); loadStatus().catch(() => {}); });
 };
 $('#sSave').onclick = () => aicw.call('updateSettings', {
   agent: $('#sAgent').value, language: $('#sLang').value,
@@ -671,7 +713,6 @@ $('#bOff').onclick = async () => {
   await aicw.call('stopBridge', {}).catch((e) => toast(e.message, 'bad'));
   toast(T('Turned off|Đã tắt'), 'good'); setTimeout(() => loadStatus().catch(() => {}), 12000);
 };
-$('#bUnlink').onclick = () => $('#bServerSelf').click();
 $('#bRestart2').onclick = async () => {
   S.restarting = true; $('#bRestart2').disabled = true; loadStatus().catch(() => {});
   try {
@@ -697,6 +738,7 @@ aicw.call('agents', {}).then((r) => {
 show((aicw.getState() || {}).view || 'home');
 aicw.on('event:devices', () => loadDevices().catch(() => {}));
 aicw.on('event:bridge', () => loadStatus().catch(() => {}));
+aicw.on('event:links', () => loadLinks().catch(() => {}));
 aicw.on('visible', refresh);
 setInterval(() => { if (aicw.visible !== false && $('#wiz').hidden) refresh(); }, 15000);
 } catch (e) { console.error('page start', e); document.body.insertAdjacentHTML('beforeend', '<pre style="color:#c00;padding:16px">' + String(e && e.stack || e) + '</pre>'); }
