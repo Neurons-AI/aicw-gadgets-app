@@ -210,15 +210,15 @@
       <h3 data-t="Connection|Kết nối"></h3>
       <div class="pc">
         <div class="pc-ico" id="cnIco"></div>
-        <div class="grow"><b id="cnTitle"></b><div class="small muted" id="cnSub"></div></div>
+        <div class="grow"><b id="cnTitle" data-t="Checking…|Đang kiểm tra…"></b><div class="small muted" id="cnSub"></div></div>
       </div>
       <div class="row" style="margin-top:12px">
-        <button class="btn primary" id="bOn" data-t="Turn on|Bật kết nối"></button>
-        <button class="btn" id="bRestart2" data-t="Restart|Khởi động lại"></button>
-        <button class="btn" id="bOff" data-t="Turn off|Tắt kết nối"></button>
-        <button class="btn" id="bUnlink" data-t="Disconnect|Ngắt kết nối"></button>
+        <button class="btn primary" id="bOn" hidden data-t="Turn on|Bật kết nối"></button>
+        <button class="btn" id="bRestart2" hidden data-t="Restart|Khởi động lại"></button>
+        <button class="btn" id="bOff" hidden data-t="Turn off|Tắt kết nối"></button>
+        <button class="btn" id="bUnlink" hidden data-t="Disconnect|Ngắt kết nối"></button>
       </div>
-      <p class="small muted" id="cnHint" style="margin:10px 0 0" data-t="If gadgets stop answering, press Restart. It takes about 20 seconds.|Nếu gadget không trả lời, bấm Khởi động lại. Mất khoảng 20 giây."></p>
+      <p class="small muted" id="cnHint" hidden style="margin:10px 0 0" data-t="If gadgets stop answering, press Restart. It takes about 20 seconds.|Nếu gadget không trả lời, bấm Khởi động lại. Mất khoảng 20 giây."></p>
     </div>
 
     <div class="sec">
