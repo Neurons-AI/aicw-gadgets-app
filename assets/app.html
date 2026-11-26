@@ -120,6 +120,8 @@
   .pc { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border: 1px solid var(--ui-border); border-radius: 14px; background: var(--ui-bg); }
   .pc-ico { font-size: 26px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--ui-accent) 10%, transparent); }
   .pc .grow { flex: 1; min-width: 0; }
+  .pc-ico[class*="dot-"]::after { content: ''; width: 16px; height: 16px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 5px color-mix(in srgb, var(--c) 22%, transparent); }
+  .dot-green { --c: #22a55b; } .dot-orange { --c: #f08a24; } .dot-yellow { --c: #e5b400; } .dot-red { --c: #e5484d; }
   .pc b { font-size: 15.5px; }
   .codebox { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border: 1px dashed var(--ui-border); border-radius: 12px; background: var(--ui-bg); }
   .codebox code { flex: 1; font-size: 12.5px; word-break: break-all; color: var(--ui-muted-fg); }
@@ -207,11 +209,11 @@
     <div class="sec">
       <h3 data-t="Connection|Kết nối"></h3>
       <div class="pc">
-        <div class="pc-ico" id="cnIco">🟢</div>
+        <div class="pc-ico" id="cnIco"></div>
         <div class="grow"><b id="cnTitle"></b><div class="small muted" id="cnSub"></div></div>
         <button class="btn" id="bRestart2" data-t="Restart|Khởi động lại"></button>
       </div>
-      <p class="small muted" style="margin:10px 0 0" data-t="If gadgets stop answering, press Restart. It takes about 20 seconds.|Nếu gadget không trả lời, bấm Khởi động lại. Mất khoảng 20 giây."></p>
+      <p class="small muted" id="cnHint" style="margin:10px 0 0" data-t="If gadgets stop answering, press Restart. It takes about 20 seconds.|Nếu gadget không trả lời, bấm Khởi động lại. Mất khoảng 20 giây."></p>
     </div>
 
     <div class="sec">
@@ -222,10 +224,11 @@
     <div class="sec">
       <details class="adv">
         <summary data-t="Advanced|Nâng cao"></summary>
-        <div class="kv" id="advKv"></div>
+        <div id="advConn"><div class="kv" id="advKv"></div>
         <label class="sw"><input type="checkbox" id="sRelay"><div><b data-t="Reachable from anywhere|Kết nối từ mọi nơi"></b><span class="muted small" data-t="Through the AICW relay, end-to-end encrypted.|Qua relay AICW, mã hoá đầu-cuối."></span></div></label>
         <label class="sw"><input type="checkbox" id="sLan"><div><b data-t="Reachable on the same Wi-Fi|Kết nối trong cùng Wi-Fi"></b></div></label>
-        <div class="row" style="margin-top:12px"><button class="btn" id="bRestart" data-t="Restart the connection|Khởi động lại kết nối"></button><button class="btn" id="bSaveAdv" data-t="Save|Lưu"></button></div>
+        <div class="row" style="margin-top:12px"><button class="btn" id="bRestart" data-t="Restart the connection|Khởi động lại kết nối"></button><button class="btn" id="bSaveAdv" data-t="Save|Lưu"></button></div></div>
+        <p class="small muted" id="advRemote" style="margin:0" data-t="Nothing to set here: this computer only sets gadgets up.|Không có gì để chỉnh: máy này chỉ dùng để cài gadget."></p>
       </details>
     </div>
   </section>
@@ -589,7 +592,7 @@ async function loadStatus() {
     S.upgrading = true;
     aicw.jobs.start('bridge', {}).catch(() => {}).finally(() => setTimeout(() => (S.upgrading = false), 60000));
   }
-  if (s.enabled !== false && !b.running && !S.starting) {
+  if (s.enabled !== false && !b.running && !S.starting && !(S.target && !S.target.self)) {
     S.starting = true;
     aicw.jobs.start('bridge', {}).catch(() => {}).finally(() => setTimeout(() => (S.starting = false), 60000));
   }
@@ -599,9 +602,19 @@ async function loadStatus() {
     $('#sOpen').checked = s.open !== false; $('#sRelay').checked = !!s.relay; $('#sLan').checked = !!s.lan;
   }
   const on = !!b.running && b.version === st.codeVersion, old = !!b.running && b.version !== st.codeVersion;
-  $('#cnIco').textContent = on ? '🟢' : old || S.restarting ? '🟡' : '🔴';
-  $('#cnTitle').textContent = on ? T('Working|Đang hoạt động') : old || S.restarting ? T('Restarting…|Đang khởi động lại…') : s.enabled === false ? T('Turned off|Đang tắt') : T('Not running|Chưa chạy');
-  $('#cnSub').textContent = on ? T(`Since ${ago(b.startedAt)} · ${(b.online || []).length} gadget(s) connected|Từ ${ago(b.startedAt)} · ${(b.online || []).length} gadget đang kết nối`) : '';
+  const remote = S.target && !S.target.self;
+  $('#cnIco').className = 'pc-ico dot-' + (remote ? 'orange' : on ? 'green' : old || S.restarting ? 'yellow' : 'red');
+  $('#cnIco').textContent = '';
+  if (remote) {
+    const name = S.target.label || T('another computer|máy khác');
+    $('#cnTitle').textContent = T(`Connected through ${name}|Đang kết nối qua máy ${name}`);
+    $('#cnSub').textContent = T(`Gadgets talk to the assistant on ${name}. This computer only sets them up.|Gadget trò chuyện với trợ lý trên ${name}. Máy này chỉ dùng để cài gadget.`);
+  } else {
+    $('#cnTitle').textContent = on ? T('Working|Đang hoạt động') : old || S.restarting ? T('Restarting…|Đang khởi động lại…') : s.enabled === false ? T('Turned off|Đang tắt') : T('Not running|Chưa chạy');
+    $('#cnSub').textContent = on ? T(`Since ${ago(b.startedAt)} · ${(b.online || []).length} gadget(s) connected|Từ ${ago(b.startedAt)} · ${(b.online || []).length} gadget đang kết nối`) : '';
+  }
+  $('#bRestart2').hidden = !!remote; $('#cnHint').hidden = !!remote;
+  $('#advConn').hidden = !!remote; $('#advRemote').hidden = !remote;
   const yes = T('working|đang chạy'), no = T('off|tắt');
   $('#advKv').innerHTML = [
     [T('Connection|Kết nối'), b.running ? T(`on since ${ago(b.startedAt)}|bật từ ${ago(b.startedAt)}`) : s.enabled === false ? no : T('starting|đang khởi động')],
@@ -653,7 +666,7 @@ document.querySelector('#logo').innerHTML = dou();
 document.querySelectorAll('.douArt').forEach((s) => (s.innerHTML = dou()));
 translate();
 if (window.AicwApp && AicwApp.speechPicker) document.querySelectorAll('[data-speech-picker]').forEach((n) => { try { AicwApp.speechPicker(n, n.dataset.speechPicker); } catch (e) { console.warn(e); } });
-async function refresh() { await Promise.all([loadStatus().catch(() => {}), loadDevices().catch(() => {})]); }
+async function refresh() { if (!S.target) await loadServer().catch(() => {}); await Promise.all([loadStatus().catch(() => {}), loadDevices().catch(() => {})]); }
 aicw.call('agents', {}).then((r) => {
   S.agents = (r.agents || []).map((a) => (typeof a === 'string' ? { id: a, name: a } : a)).filter((a) => !/^(member-|aiapp-|okdb-live-|cskh-rehearsal$)/.test(a.id));
   refresh();
