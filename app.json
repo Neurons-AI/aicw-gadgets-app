@@ -3,7 +3,7 @@
   "name": "AICW Gadgets",
   "iconImage": "assets/icon.png",
   "icon": "📟",
-  "version": "0.1.37",
+  "version": "0.1.38",
   "description": "Flash, set up and talk to AICW voice gadgets (Dou on an M5Stack StickS3 and other ESP32 boards) from your own AICoworker.",
   "window": {
     "entry": "assets/app.html",
@@ -511,7 +511,6 @@
     "host": [
       "tts",
       "stt",
-      "shell",
       "notify"
     ],
     "schedule": false,
@@ -546,5 +545,17 @@
       }
     ]
   },
-  "compatibility": "Needs a USB data cable to flash a gadget. Works on macOS, Windows and Linux."
+  "compatibility": "Needs a USB data cable to flash a gadget. Works on macOS, Windows and Linux.",
+  "ai": {
+    "speech": {
+      "recommended": "local",
+      "alternatives": [
+        "edge",
+        "openai",
+        "elevenlabs",
+        "token"
+      ],
+      "note": "Speech runs on this computer for free; the app falls back to the next engine that works."
+    }
+  }
 }
