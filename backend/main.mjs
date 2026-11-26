@@ -94,6 +94,7 @@ async function targetHost(ctx) {
   return { host: 'relay:' + idn.id, self: true };
 }
 const bleAnswers = new Map(); // jobId -> resolve
+const recentTurns = new Map(); // mac -> Map(audio fingerprint -> time)
 
 // ---------- speech engines: try in order until one works ----------
 const eng = (e) => (e === 'local:gemma' ? { engine: 'local', model: 'gemma' } : e && e !== 'auto' ? { engine: e } : {});
@@ -139,6 +140,13 @@ function serveGadget(ctx, ch, via, live) {
       send({ type: 'sent', id });
       if (text == null) {
         if (!pcm.length || pcm.length < RATE * 2 * 0.3) { send({ type: 'error', id, text: 'Nói ngắn quá' }); return; }
+        // The gadget keeps a recording that failed and sends it again later: answer each
+        // recording once. Same audio within 10 minutes = the same question.
+        const fp = crypto.createHash('sha1').update(pcm).digest('hex');
+        const seen = recentTurns.get(st.mac) || new Map();
+        for (const [k, t] of seen) if (Date.now() - t > 600_000) seen.delete(k);
+        if (seen.has(fp)) { ctx.log.info(`turn ${id}: same recording again, skipped`); send({ type: 'done', id }); return; }
+        seen.set(fp, Date.now()); recentTurns.set(st.mac, seen);
         const f = await ctx.files.put({ name: `turn-${st.mac}-${id}.wav`, data: pcmToWav(pcm), mime: 'audio/wav' });
         try {
           const lang = dev.language || s.language;

@@ -205,6 +205,16 @@
     </div>
 
     <div class="sec">
+      <h3 data-t="Connection|Kết nối"></h3>
+      <div class="pc">
+        <div class="pc-ico" id="cnIco">🟢</div>
+        <div class="grow"><b id="cnTitle"></b><div class="small muted" id="cnSub"></div></div>
+        <button class="btn" id="bRestart2" data-t="Restart|Khởi động lại"></button>
+      </div>
+      <p class="small muted" style="margin:10px 0 0" data-t="If gadgets stop answering, press Restart. It takes about 20 seconds.|Nếu gadget không trả lời, bấm Khởi động lại. Mất khoảng 20 giây."></p>
+    </div>
+
+    <div class="sec">
       <h3 data-t="New gadgets|Gadget mới"></h3>
       <label class="sw" style="border-top:0;padding-top:4px"><input type="checkbox" id="sOpen"><div><b data-t="Accept new gadgets automatically|Tự động chấp nhận gadget mới"></b><span class="muted small" data-t="On: a gadget set up for this computer can talk right away. Off: you allow each new gadget here first.|Bật: gadget được cài cho máy này trò chuyện được ngay. Tắt: bạn phải cho phép từng gadget mới ở đây."></span></div></label>
     </div>
@@ -588,6 +598,10 @@ async function loadStatus() {
     $('#sAgent').value = s.agent; $('#sLang').value = s.language || 'vi';
     $('#sOpen').checked = s.open !== false; $('#sRelay').checked = !!s.relay; $('#sLan').checked = !!s.lan;
   }
+  const on = !!b.running && b.version === st.codeVersion, old = !!b.running && b.version !== st.codeVersion;
+  $('#cnIco').textContent = on ? '🟢' : old || S.restarting ? '🟡' : '🔴';
+  $('#cnTitle').textContent = on ? T('Working|Đang hoạt động') : old || S.restarting ? T('Restarting…|Đang khởi động lại…') : s.enabled === false ? T('Turned off|Đang tắt') : T('Not running|Chưa chạy');
+  $('#cnSub').textContent = on ? T(`Since ${ago(b.startedAt)} · ${(b.online || []).length} gadget(s) connected|Từ ${ago(b.startedAt)} · ${(b.online || []).length} gadget đang kết nối`) : '';
   const yes = T('working|đang chạy'), no = T('off|tắt');
   $('#advKv').innerHTML = [
     [T('Connection|Kết nối'), b.running ? T(`on since ${ago(b.startedAt)}|bật từ ${ago(b.startedAt)}`) : s.enabled === false ? no : T('starting|đang khởi động')],
@@ -622,6 +636,16 @@ $('#sSave').onclick = () => aicw.call('updateSettings', {
 $('#sOpen').onchange = () => aicw.call('updateSettings', { open: $('#sOpen').checked }).then(() => toast(T('Saved|Đã lưu'), 'good')).catch((e) => toast(e.message, 'bad'));
 $('#bSaveAdv').onclick = () => aicw.call('updateSettings', { relay: $('#sRelay').checked, lan: $('#sLan').checked })
   .then(() => toast(T('Saved|Đã lưu'), 'good')).catch((e) => toast(e.message, 'bad'));
+$('#bRestart2').onclick = async () => {
+  S.restarting = true; $('#bRestart2').disabled = true; loadStatus().catch(() => {});
+  try {
+    await aicw.call('startBridge', {});
+    await aicw.call('restartBridge', {}).catch(() => {});
+    aicw.jobs.start('bridge', {}).catch(() => {});
+    toast(T('Restarting…|Đang khởi động lại…'));
+  } catch (e) { toast(e.message, 'bad'); }
+  setTimeout(() => { S.restarting = false; $('#bRestart2').disabled = false; loadStatus().catch(() => {}); }, 25000);
+};
 $('#bRestart').onclick = () => aicw.call('restartBridge', {}).then(() => toast(T('Restarting…|Đang khởi động lại…'))).catch((e) => toast(e.message, 'bad'));
 
 // ---------- start ----------
