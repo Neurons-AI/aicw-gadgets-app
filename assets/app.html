@@ -2,167 +2,232 @@
 <html>
 <head><meta charset="utf-8"><title>AICW Gadgets</title>
 <style>
-  .shell { display: grid; grid-template-columns: 200px 1fr; gap: var(--ui-gap-lg, 20px); min-height: 100%; }
-  @media (max-width: 680px) { .shell { grid-template-columns: 1fr; } .nav { flex-direction: row; overflow-x: auto; } }
-  .nav { display: flex; flex-direction: column; gap: 4px; }
-  .nav button { text-align: left; white-space: nowrap; }
-  .nav button.on { background: var(--ui-accent); color: var(--ui-accent-fg, #fff); }
+  /* Vietnamese-safe type: the system UI fonts carry every Vietnamese glyph. */
+  :root, html[data-aicw-style] {
+    --ui-font-display: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+    --ui-font-body: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  }
+  body { font-family: var(--ui-font-body); }
+  .ui-app { max-width: 1100px; }
+  .glow { --g: #fff4c2; }
+
+  /* header */
+  .top { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 18px; }
+  .brand { display: flex; gap: 14px; align-items: center; min-width: 0; }
+  .brand svg { width: 52px; height: 52px; flex: none; filter: drop-shadow(0 0 10px rgba(255, 244, 194, .35)); }
+  .brand h1 { margin: 0; font-size: clamp(20px, 2.6vw, 26px); font-weight: 700; letter-spacing: -0.01em; }
+  .brand p { margin: 2px 0 0; color: var(--ui-muted-fg); font-size: 13.5px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--ui-border); background: var(--ui-surface); font-size: 13px; white-space: nowrap; }
+
+  /* tabs */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--ui-border); margin-bottom: 18px; overflow-x: auto; scrollbar-width: none; }
+  .tabs button { appearance: none; border: 0; background: none; color: var(--ui-muted-fg); font: inherit; font-size: 14px; font-weight: 500; padding: 10px 14px; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; display: inline-flex; gap: 7px; align-items: center; }
+  .tabs button:hover { color: var(--ui-fg); }
+  .tabs button.on { color: var(--ui-fg); border-bottom-color: var(--ui-accent); }
+  .tabs .count { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; background: var(--ui-surface-2, var(--ui-surface)); color: var(--ui-muted-fg); }
+
+  /* stat strip */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat { padding: 14px 16px; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-lg, 14px); background: var(--ui-surface); }
+  .stat .k { font-size: 12px; color: var(--ui-muted-fg); text-transform: uppercase; letter-spacing: .04em; }
+  .stat .v { font-size: 22px; font-weight: 650; margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+  .stat .s { font-size: 12.5px; color: var(--ui-muted-fg); margin-top: 2px; }
+
+  .card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-lg, 14px); background: var(--ui-surface); padding: 16px 18px; margin-bottom: 14px; }
+  .card h3 { margin: 0 0 4px; font-size: 15px; font-weight: 650; }
+  .card .lead { margin: 0 0 12px; color: var(--ui-muted-fg); font-size: 13.5px; }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .grow { flex: 1; min-width: 0; }
-  .muted { color: var(--ui-muted-fg); font-size: 0.9em; }
-  .mono { font-family: ui-monospace, Menlo, monospace; font-size: 0.85em; word-break: break-all; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--ui-muted-fg); }
-  .dot.ok { background: var(--ui-good); } .dot.warn { background: var(--ui-warn); } .dot.bad { background: var(--ui-bad); }
-  .gadget { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; }
-  .face { width: 56px; height: 56px; }
-  .chat { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow: auto; padding: 4px; }
-  .msg { padding: 8px 12px; border-radius: 12px; max-width: 85%; white-space: pre-wrap; line-height: 1.4; }
-  .msg.user { align-self: flex-end; background: var(--ui-accent); color: var(--ui-accent-fg, #fff); }
-  .msg.assistant { align-self: flex-start; background: var(--ui-surface-2, var(--ui-surface)); border: 1px solid var(--ui-border); }
-  .board { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-  pre.log { max-height: 240px; overflow: auto; font-size: 0.78em; white-space: pre-wrap; }
+  .muted { color: var(--ui-muted-fg); font-size: 13px; }
+  .mono { font-family: var(--ui-font-mono, ui-monospace, Menlo, monospace); font-size: 12.5px; word-break: break-all; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--ui-muted-fg); flex: none; }
+  .dot.ok { background: var(--ui-good); box-shadow: 0 0 0 3px var(--ui-good-bg, transparent); }
+  .dot.warn { background: var(--ui-warn); } .dot.bad { background: var(--ui-bad); }
+
+  .route { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--ui-border); }
+  .route:first-of-type { border-top: 0; }
+  .route b { font-weight: 600; font-size: 14px; }
+  .route .addr { grid-column: 2 / 4; }
+  .copy { appearance: none; border: 1px solid var(--ui-border); background: none; color: var(--ui-muted-fg); border-radius: 8px; padding: 3px 8px; font: inherit; font-size: 12px; cursor: pointer; }
+
+  /* gadget list */
+  .glist { display: grid; gap: 10px; }
+  .gad { display: grid; grid-template-columns: 52px 1fr auto; gap: 14px; align-items: center; padding: 12px 14px; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-lg, 14px); background: var(--ui-surface); cursor: pointer; transition: border-color .15s; }
+  .gad:hover, .gad.sel { border-color: var(--ui-accent); }
+  .gad svg { width: 52px; height: 52px; }
+  .gad .name { font-weight: 600; font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .gad .meta { color: var(--ui-muted-fg); font-size: 12.5px; margin-top: 2px; }
+  .gad .said { font-size: 13px; margin-top: 4px; color: var(--ui-fg); opacity: .85; }
+  .gad .agent { font-size: 12.5px; color: var(--ui-muted-fg); text-align: right; }
+  @media (max-width: 520px) { .gad { grid-template-columns: 44px 1fr; } .gad .agent { display: none; } .gad svg { width: 44px; height: 44px; } }
+
+  .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field > span { font-size: 12.5px; color: var(--ui-muted-fg); font-weight: 500; }
+  .switch { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--ui-border); }
+  .switch:first-of-type { border-top: 0; }
+  .switch input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--ui-accent); }
+  .switch b { font-weight: 550; font-size: 14px; display: block; }
+
+  /* install steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .step { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--ui-border); border-radius: 12px; font-size: 13.5px; color: var(--ui-muted-fg); }
+  .step i { font-style: normal; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--ui-border); font-size: 12px; font-weight: 600; flex: none; }
+  .step.active { color: var(--ui-fg); border-color: var(--ui-accent); }
+  .step.active i { background: var(--ui-accent); color: var(--ui-accent-fg, #fff); border-color: var(--ui-accent); }
+  .step.done i { background: var(--ui-good); color: #fff; border-color: var(--ui-good); }
+  @media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
+  .bar { height: 6px; border-radius: 999px; background: var(--ui-surface-2, var(--ui-border)); overflow: hidden; margin-top: 12px; }
+  .bar span { display: block; height: 100%; width: 0; background: var(--ui-accent); transition: width .3s; }
+
+  /* chat */
+  .chat { display: flex; flex-direction: column; gap: 8px; max-height: min(58vh, 560px); min-height: 160px; overflow: auto; padding: 4px 2px; }
+  .msg { padding: 9px 13px; border-radius: 14px; max-width: 82%; white-space: pre-wrap; line-height: 1.45; font-size: 14px; }
+  .msg.user { align-self: flex-end; background: var(--ui-accent); color: var(--ui-accent-fg, #fff); border-bottom-right-radius: 4px; }
+  .msg.assistant { align-self: flex-start; background: var(--ui-surface-2, var(--ui-bg)); border: 1px solid var(--ui-border); border-bottom-left-radius: 4px; }
+  .empty { text-align: center; padding: 26px 10px; color: var(--ui-muted-fg); font-size: 13.5px; }
+  pre.log { max-height: 240px; overflow: auto; font-size: 12px; white-space: pre-wrap; margin: 10px 0 0; padding: 10px; border-radius: 10px; background: var(--ui-surface-2, var(--ui-bg)); border: 1px solid var(--ui-border); }
+  .alert { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--ui-warn); background: var(--ui-warn-bg, transparent); margin-bottom: 14px; font-size: 14px; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <div class="ui-app">
-  <header class="ui-header">
-    <div class="ui-eyebrow" data-t="AICoworker · voice gadgets|AICoworker · thiết bị giọng nói"></div>
-    <h1 class="ui-title">AICW Gadgets</h1>
-    <p class="ui-subtitle" data-t="Flash a board, connect it to your agent, and see every gadget's chat.|Nạp firmware cho bo mạch, nối với agent của bạn, và xem cuộc trò chuyện của từng gadget."></p>
-  </header>
-
-  <div class="shell">
-    <nav class="nav">
-      <button class="ui-btn ghost on" data-view="home" data-t="Overview|Tổng quan"></button>
-      <button class="ui-btn ghost" data-view="gadgets" data-t="Gadgets|Thiết bị"></button>
-      <button class="ui-btn ghost" data-view="install" data-t="Install|Cài đặt"></button>
-      <button class="ui-btn ghost" data-view="channels" data-t="Channels|Kênh chat"></button>
-      <button class="ui-btn ghost" data-view="settings" data-t="Settings|Cài đặt cầu nối"></button>
-    </nav>
-
-    <main>
-      <!-- Overview -->
-      <section data-pane="home">
-        <div class="ui-grid cols-3">
-          <div class="ui-kpi"><div class="ui-kpi-label" data-t="Bridge|Cầu nối"></div><div class="ui-kpi-value" id="kBridge">–</div><div class="ui-kpi-delta" id="kBridgeSub"></div></div>
-          <div class="ui-kpi"><div class="ui-kpi-label" data-t="Gadgets online|Đang kết nối"></div><div class="ui-kpi-value" id="kOnline">–</div><div class="ui-kpi-delta" id="kTotal"></div></div>
-          <div class="ui-kpi"><div class="ui-kpi-label" data-t="Firmware|Firmware"></div><div class="ui-kpi-value" id="kFw">–</div><div class="ui-kpi-delta" id="kFwSub"></div></div>
-        </div>
-        <div class="ui-card" style="margin-top:16px">
-          <h3 data-t="How gadgets reach this computer|Gadget kết nối tới máy này thế nào"></h3>
-          <div class="row"><span class="dot" id="dRelay"></span><b data-t="Anywhere (AICW relay)|Mọi nơi (relay AICW)"></b><span class="muted" id="tRelay"></span></div>
-          <div class="mono" id="hostId" style="margin:6px 0 12px"></div>
-          <div class="row"><span class="dot" id="dLan"></span><b data-t="Same Wi-Fi (LAN)|Cùng Wi-Fi (LAN)"></b><span class="muted" id="tLan"></span></div>
-          <div class="row" style="margin-top:14px">
-            <button class="ui-btn primary sm" id="bStart" data-t="Turn bridge on|Bật cầu nối"></button>
-            <button class="ui-btn sm" id="bRestart" data-t="Restart|Khởi động lại"></button>
-            <button class="ui-btn ghost sm" id="bStop" data-t="Turn off|Tắt"></button>
-          </div>
-        </div>
-        <div class="ui-alert" id="pendingAlert" hidden style="margin-top:16px"></div>
-      </section>
-
-      <!-- Gadgets -->
-      <section data-pane="gadgets" hidden>
-        <div class="row" style="margin-bottom:12px"><h3 class="grow" data-t="Your gadgets|Gadget của bạn"></h3><button class="ui-btn sm" id="bReload" data-t="Refresh|Tải lại"></button></div>
-        <div id="gadgetList" class="ui-list boxed"></div>
-        <div class="ui-empty" id="gadgetEmpty" hidden data-t="No gadget yet. Open Install to flash your first board.|Chưa có gadget nào. Vào Cài đặt để nạp bo mạch đầu tiên."></div>
-
-        <div class="ui-card" id="editCard" hidden style="margin-top:16px">
-          <h3 id="editTitle"></h3>
-          <div class="ui-grid cols-2">
-            <label class="ui-field"><span class="ui-label" data-t="Name|Tên"></span><input class="ui-input" id="eName" maxlength="40"></label>
-            <label class="ui-field"><span class="ui-label" data-t="Agent|Agent"></span><select class="ui-select" id="eAgent"></select></label>
-            <label class="ui-field"><span class="ui-label" data-t="Language|Ngôn ngữ"></span><select class="ui-select" id="eLang"><option value="">—</option><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
-            <label class="ui-field"><span class="ui-label" data-t="Voice|Giọng đọc"></span><input class="ui-input" id="eVoice" maxlength="64" placeholder="auto"></label>
-          </div>
-          <div class="row" style="margin-top:12px">
-            <button class="ui-btn primary sm" id="eSave" data-t="Save|Lưu"></button>
-            <button class="ui-btn sm" id="eBlock"></button>
-            <button class="ui-btn ghost sm" id="eChat" data-t="Open chat|Mở kênh chat"></button>
-            <span class="grow"></span>
-            <button class="ui-btn danger sm" id="eRemove" data-t="Forget|Xoá"></button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Install -->
-      <section data-pane="install" hidden>
-        <div class="ui-steps" style="margin-bottom:16px">
-          <div class="ui-step active" id="s1" data-t="1. Plug in|1. Cắm USB"></div>
-          <div class="ui-step" id="s2" data-t="2. Flash|2. Nạp firmware"></div>
-          <div class="ui-step" id="s3" data-t="3. Wi-Fi|3. Wi-Fi"></div>
-        </div>
-        <div class="ui-card">
-          <div class="row"><h3 class="grow" data-t="Board on USB|Bo mạch đang cắm"></h3><button class="ui-btn sm" id="bScan" data-t="Scan|Dò tìm"></button></div>
-          <p class="muted" data-t="Plug the board in with a USB data cable, then press Scan.|Cắm bo mạch bằng cáp USB có truyền dữ liệu, rồi bấm Dò tìm."></p>
-          <select class="ui-select" id="port"></select>
-          <div id="portInfo" class="muted" style="margin-top:8px"></div>
-        </div>
-        <div class="ui-card" style="margin-top:12px">
-          <h3 data-t="Firmware|Firmware"></h3>
-          <label class="ui-field"><span class="ui-label" data-t="Board|Bo mạch"></span><select class="ui-select" id="board"></select></label>
-          <div class="muted" id="boardInfo"></div>
-          <div class="row" style="margin-top:10px">
-            <button class="ui-btn primary" id="bFlash" data-t="Flash AICW Gadgets|Nạp AICW Gadgets"></button>
-            <button class="ui-btn ghost sm" id="bReboot" data-t="Restart board|Khởi động lại bo"></button>
-          </div>
-          <div class="ui-progress" id="flashBar" hidden style="margin-top:10px"><span style="width:0%"></span></div>
-          <div class="muted" id="flashNote"></div>
-        </div>
-        <div class="ui-card" style="margin-top:12px">
-          <h3 data-t="Connect to Wi-Fi and to this computer|Nối Wi-Fi và nối với máy này"></h3>
-          <div class="ui-grid cols-2">
-            <label class="ui-field"><span class="ui-label" data-t="Wi-Fi name|Tên Wi-Fi"></span><input class="ui-input" id="ssid" maxlength="32" autocomplete="off"></label>
-            <label class="ui-field"><span class="ui-label" data-t="Password|Mật khẩu"></span><input class="ui-input" id="pass" type="password" maxlength="64" autocomplete="off"></label>
-          </div>
-          <label class="ui-field" style="margin-top:8px"><span class="ui-label" data-t="Connect through|Kết nối qua"></span>
-            <select class="ui-select" id="via"><option value="relay" data-t="AICW relay — works on any network|Relay AICW — dùng được ở mọi mạng"></option><option value="lan" data-t="Same Wi-Fi only (faster)|Chỉ cùng Wi-Fi (nhanh hơn)"></option></select></label>
-          <div class="row" style="margin-top:10px"><button class="ui-btn primary" id="bSetup" data-t="Send to gadget|Gửi cho gadget"></button><button class="ui-btn ghost sm" id="bStatus" data-t="Check gadget|Kiểm tra gadget"></button><button class="ui-btn ghost sm" id="bLog" data-t="Read log|Xem log"></button></div>
-          <div id="setupOut" class="muted" style="margin-top:8px"></div>
-          <pre class="log ui-card" id="logOut" hidden></pre>
-        </div>
-      </section>
-
-      <!-- Channels -->
-      <section data-pane="channels" hidden>
-        <div class="row" style="margin-bottom:12px">
-          <select class="ui-select grow" id="chGadget"></select>
-          <button class="ui-btn sm" id="chReload" data-t="Refresh|Tải lại"></button>
-        </div>
-        <div class="muted mono" id="chKey"></div>
-        <div class="ui-card" style="margin-top:10px"><div class="chat" id="chat"></div></div>
-        <div class="row" style="margin-top:10px">
-          <input class="ui-input grow" id="chText" data-tp="Type to test this gadget's agent…|Gõ để thử agent của gadget này…">
-          <button class="ui-btn primary" id="chSend" data-t="Send|Gửi"></button>
-        </div>
-      </section>
-
-      <!-- Settings -->
-      <section data-pane="settings" hidden>
-        <div class="ui-card">
-          <div class="ui-grid cols-2">
-            <label class="ui-field"><span class="ui-label" data-t="Default agent|Agent mặc định"></span><select class="ui-select" id="sAgent"></select></label>
-            <label class="ui-field"><span class="ui-label" data-t="Language|Ngôn ngữ"></span><select class="ui-select" id="sLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
-            <label class="ui-field"><span class="ui-label" data-t="LAN port|Cổng LAN"></span><input class="ui-input" id="sPort" type="number" min="1024" max="65535"></label>
-            <label class="ui-field"><span class="ui-label" data-t="Voice|Giọng đọc"></span><input class="ui-input" id="sVoice" maxlength="64" placeholder="auto"></label>
-          </div>
-          <div class="row" style="margin-top:10px">
-            <label class="row"><input type="checkbox" id="sRelay"> <span data-t="Reachable from anywhere (AICW relay)|Kết nối từ mọi nơi (relay AICW)"></span></label>
-            <label class="row"><input type="checkbox" id="sLan"> <span data-t="Reachable on this Wi-Fi (LAN)|Kết nối trong cùng Wi-Fi (LAN)"></span></label>
-            <label class="row"><input type="checkbox" id="sOpen"> <span data-t="Accept new gadgets without asking|Nhận gadget mới không cần hỏi"></span></label>
-          </div>
-          <h4 style="margin-top:16px" data-t="Speech|Giọng nói"></h4>
-          <div class="ui-grid cols-2">
-            <div><div class="muted" data-t="Hearing (speech to text)|Nghe (giọng nói thành chữ)"></div><div data-speech-picker="stt"></div></div>
-            <div><div class="muted" data-t="Speaking (text to speech)|Nói (đọc câu trả lời)"></div><div data-speech-picker="tts"></div></div>
-          </div>
-          <div class="row" style="margin-top:14px"><button class="ui-btn primary" id="sSave" data-t="Save and restart bridge|Lưu và khởi động lại cầu nối"></button><span class="muted" id="sOut"></span></div>
-        </div>
-      </section>
-    </main>
+  <div class="top">
+    <div class="brand">
+      <svg viewBox="-12 -12 224 229" id="logo"></svg>
+      <div><h1>AICW Gadgets</h1><p data-t="Talk to your AICoworker from a pocket gadget.|Nói chuyện với AICoworker của bạn qua một gadget bỏ túi."></p></div>
+    </div>
+    <span class="pill"><span class="dot" id="pDot"></span><span id="pText">…</span></span>
   </div>
+
+  <div class="alert" id="pendingAlert" hidden></div>
+
+  <nav class="tabs">
+    <button data-view="home" class="on" data-t="Overview|Tổng quan"></button>
+    <button data-view="gadgets"><span data-t="Gadgets|Thiết bị"></span><span class="count" id="cGadgets">0</span></button>
+    <button data-view="channels" data-t="Conversations|Hội thoại"></button>
+    <button data-view="install" data-t="Add a gadget|Thêm gadget"></button>
+    <button data-view="settings" data-t="Settings|Cấu hình"></button>
+  </nav>
+
+  <!-- Overview -->
+  <section data-pane="home">
+    <div class="stats">
+      <div class="stat"><div class="k" data-t="Bridge|Cầu nối"></div><div class="v" id="kBridge">–</div><div class="s" id="kBridgeSub"></div></div>
+      <div class="stat"><div class="k" data-t="Online now|Đang trực tuyến"></div><div class="v" id="kOnline">–</div><div class="s" id="kTotal"></div></div>
+      <div class="stat"><div class="k" data-t="Firmware|Firmware"></div><div class="v" id="kFw">–</div><div class="s" id="kFwSub"></div></div>
+    </div>
+    <div class="card">
+      <div class="row"><h3 class="grow" data-t="How gadgets reach this computer|Gadget kết nối về máy này"></h3>
+        <button class="ui-btn primary sm" id="bStart" data-t="Turn on|Bật"></button>
+        <button class="ui-btn sm" id="bRestart" data-t="Restart|Khởi động lại"></button>
+        <button class="ui-btn ghost sm" id="bStop" data-t="Turn off|Tắt"></button></div>
+      <p class="lead" data-t="Every gadget you set up talks to the agent on this computer. Keep AICoworker running.|Mọi gadget bạn cài sẽ nói chuyện với agent trên máy này. Hãy để AICoworker luôn chạy."></p>
+      <div class="route"><span class="dot" id="dRelay"></span><b data-t="From anywhere · AICW relay|Từ mọi nơi · relay AICW"></b><span class="muted" id="tRelay"></span>
+        <div class="addr row"><span class="mono grow" id="hostId"></span><button class="copy" id="cpHost" data-t="Copy|Sao chép"></button></div></div>
+      <div class="route"><span class="dot" id="dLan"></span><b data-t="Same Wi-Fi · faster|Cùng Wi-Fi · nhanh hơn"></b><span class="muted" id="tLanState"></span>
+        <div class="addr mono" id="tLan"></div></div>
+    </div>
+  </section>
+
+  <!-- Gadgets -->
+  <section data-pane="gadgets" hidden>
+    <div class="glist" id="gadgetList"></div>
+    <div class="card empty" id="gadgetEmpty" hidden><span data-t="No gadget yet.|Chưa có gadget nào."></span><br><button class="ui-btn primary sm" style="margin-top:10px" data-go="install" data-t="Add your first gadget|Thêm gadget đầu tiên"></button></div>
+    <div class="card" id="editCard" hidden style="margin-top:14px">
+      <h3 id="editTitle"></h3>
+      <p class="lead mono" id="editSub"></p>
+      <div class="form">
+        <label class="field"><span data-t="Name|Tên"></span><input class="ui-input" id="eName" maxlength="40"></label>
+        <label class="field"><span data-t="Talks to agent|Nói chuyện với agent"></span><select class="ui-select" id="eAgent"></select></label>
+        <label class="field"><span data-t="Language|Ngôn ngữ"></span><select class="ui-select" id="eLang"><option value="" data-t="Same as settings|Theo cấu hình chung"></option><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
+        <label class="field"><span data-t="Voice|Giọng đọc"></span><input class="ui-input" id="eVoice" maxlength="64" data-tp="Default|Mặc định"></label>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="ui-btn primary sm" id="eSave" data-t="Save|Lưu"></button>
+        <button class="ui-btn sm" id="eChat" data-t="See conversation|Xem hội thoại"></button>
+        <button class="ui-btn sm" id="eBlock"></button>
+        <span class="grow"></span>
+        <button class="ui-btn danger sm" id="eRemove" data-t="Forget|Xoá"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Conversations -->
+  <section data-pane="channels" hidden>
+    <div class="card">
+      <div class="row"><select class="ui-select grow" id="chGadget"></select><button class="ui-btn sm" id="chReload" data-t="Refresh|Tải lại"></button></div>
+      <p class="muted mono" id="chKey" style="margin:8px 0 0"></p>
+    </div>
+    <div class="card"><div class="chat" id="chat"></div>
+      <div class="row" style="margin-top:12px">
+        <input class="ui-input grow" id="chText" data-tp="Type to try this gadget's agent…|Gõ để thử agent của gadget này…">
+        <button class="ui-btn primary" id="chSend" data-t="Send|Gửi"></button></div></div>
+  </section>
+
+  <!-- Install -->
+  <section data-pane="install" hidden>
+    <div class="steps">
+      <div class="step active" id="s1"><i>1</i><span data-t="Plug in USB|Cắm USB"></span></div>
+      <div class="step" id="s2"><i>2</i><span data-t="Flash firmware|Nạp firmware"></span></div>
+      <div class="step" id="s3"><i>3</i><span data-t="Wi-Fi and connect|Nối Wi-Fi"></span></div>
+    </div>
+    <div class="card">
+      <div class="row"><h3 class="grow" data-t="Board on USB|Bo mạch đang cắm"></h3><button class="ui-btn sm" id="bScan" data-t="Scan again|Dò lại"></button></div>
+      <p class="lead" data-t="Use a USB cable that carries data, not only power.|Dùng cáp USB có truyền dữ liệu, không phải cáp chỉ sạc."></p>
+      <select class="ui-select" id="port" style="width:100%"></select>
+      <p class="muted" id="portInfo" style="margin:8px 0 0"></p>
+    </div>
+    <div class="card">
+      <h3 data-t="Firmware|Firmware"></h3>
+      <label class="field" style="margin-top:8px"><span data-t="Board model|Mẫu bo mạch"></span><select class="ui-select" id="board"></select></label>
+      <p class="muted" id="boardInfo" style="margin:8px 0 0"></p>
+      <div class="row" style="margin-top:12px">
+        <button class="ui-btn primary" id="bFlash" data-t="Flash AICW Gadgets|Nạp AICW Gadgets"></button>
+        <button class="ui-btn ghost sm" id="bReboot" data-t="Restart board|Khởi động lại bo"></button></div>
+      <div class="bar" id="flashBar" hidden><span></span></div>
+      <p class="muted" id="flashNote" style="margin:8px 0 0"></p>
+    </div>
+    <div class="card">
+      <h3 data-t="Wi-Fi and connect|Nối Wi-Fi và kết nối"></h3>
+      <p class="lead" data-t="The gadget keeps these after a restart. The password is sent over USB only and not saved here.|Gadget giữ thông tin này sau khi khởi động lại. Mật khẩu chỉ gửi qua USB, không lưu ở đây."></p>
+      <div class="form">
+        <label class="field"><span data-t="Wi-Fi name|Tên Wi-Fi"></span><input class="ui-input" id="ssid" maxlength="32" autocomplete="off"></label>
+        <label class="field"><span data-t="Wi-Fi password|Mật khẩu Wi-Fi"></span><input class="ui-input" id="wpass" type="text" style="-webkit-text-security:disc" maxlength="64" autocomplete="off"></label>
+        <label class="field"><span data-t="Connect through|Kết nối qua"></span><select class="ui-select" id="via"><option value="relay" data-t="AICW relay — any network|Relay AICW — mọi mạng"></option><option value="lan" data-t="Same Wi-Fi only|Chỉ cùng Wi-Fi"></option></select></label>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="ui-btn primary" id="bSetup" data-t="Send to gadget|Gửi cho gadget"></button><button class="ui-btn ghost sm" id="bStatus" data-t="Check gadget|Kiểm tra gadget"></button><button class="ui-btn ghost sm" id="bLog" data-t="Show log|Xem log"></button></div>
+      <p class="muted" id="setupOut" style="margin:10px 0 0"></p>
+      <pre class="log" id="logOut" hidden></pre>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section data-pane="settings" hidden>
+    <div class="card">
+      <h3 data-t="Agent and language|Agent và ngôn ngữ"></h3>
+      <div class="form" style="margin-top:10px">
+        <label class="field"><span data-t="Default agent|Agent mặc định"></span><select class="ui-select" id="sAgent"></select></label>
+        <label class="field"><span data-t="Language|Ngôn ngữ"></span><select class="ui-select" id="sLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></label>
+        <label class="field"><span data-t="Voice|Giọng đọc"></span><input class="ui-input" id="sVoice" maxlength="64" data-tp="Default|Mặc định"></label>
+      </div>
+    </div>
+    <div class="card">
+      <h3 data-t="Speech|Giọng nói"></h3>
+      <div class="form" style="margin-top:10px">
+        <div class="field"><span data-t="Hearing (speech to text)|Nghe (giọng nói thành chữ)"></span><div data-speech-picker="stt"></div></div>
+        <div class="field"><span data-t="Speaking (text to speech)|Đọc câu trả lời"></span><div data-speech-picker="tts"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3 data-t="Connections|Kết nối"></h3>
+      <label class="switch"><input type="checkbox" id="sRelay"><div><b data-t="Reachable from anywhere|Kết nối từ mọi nơi"></b><span class="muted" data-t="Through the end-to-end encrypted AICW relay.|Qua relay AICW, mã hoá đầu-cuối."></span></div></label>
+      <label class="switch"><input type="checkbox" id="sLan"><div><b data-t="Reachable on this Wi-Fi|Kết nối trong cùng Wi-Fi"></b><span class="muted"><span data-t="Port|Cổng"></span> <input class="ui-input" id="sPort" type="number" min="1024" max="65535" style="width:96px;display:inline-block;padding:2px 8px"></span></div></label>
+      <label class="switch"><input type="checkbox" id="sOpen"><div><b data-t="Accept new gadgets without asking|Nhận gadget mới không cần hỏi"></b><span class="muted" data-t="Leave off: a new gadget waits until you allow it.|Nên để tắt: gadget mới phải chờ bạn cho phép."></span></div></label>
+      <div class="row" style="margin-top:12px"><button class="ui-btn primary" id="sSave" data-t="Save|Lưu"></button><span class="muted" id="sOut"></span></div>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -174,85 +239,107 @@ function translate() {
   document.querySelectorAll('[data-tp]').forEach((el) => { el.placeholder = T(el.dataset.tp); });
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const ago = (t) => { if (!t) return ''; const s = (Date.now() - t) / 1000; return s < 60 ? T('just now|vừa xong') : s < 3600 ? Math.round(s / 60) + (vi() ? ' phút trước' : ' min ago') : s < 86400 ? Math.round(s / 3600) + (vi() ? ' giờ trước' : ' h ago') : new Date(t).toLocaleDateString(); };
-const fail = (where) => (e) => { aicw.toast ? aicw.toast(String(e.message || e), { tone: 'bad' }) : alert(e.message || e); console.warn(where, e); };
+const ago = (t) => { if (!t) return ''; const s = (Date.now() - t) / 1000; if (s < 60) return T('just now|vừa xong'); if (s < 3600) return Math.round(s / 60) + (vi() ? ' phút trước' : ' min ago'); if (s < 86400) return Math.round(s / 3600) + (vi() ? ' giờ trước' : ' h ago'); return new Date(t).toLocaleDateString(); };
+const toast = (m, tone) => (aicw.ui && aicw.ui.toast ? aicw.ui.toast(m, tone) : console.log(m));
+const fail = (where) => (e) => { toast(String(e && e.message || e), 'bad'); console.warn(where, e); };
 
-const DOU = (glow = '#fff4c2', mood = '') => `<svg class="face" viewBox="-10 -10 220 225"><path d="${(() => { let d = ''; for (let i = 0; i <= 360; i++) { const a = i / 360 * Math.PI * 2, r = 80 + 1.6 * Math.cos(a * 18); d += (i ? 'L' : 'M') + (100 + Math.cos(a) * r).toFixed(1) + ' ' + (105 + Math.sin(a) * r).toFixed(1); } return d; })()}Z" fill="#2a2638" stroke="${glow}" stroke-width="7"/>${[77, 123].map((x) => { let p = ''; for (let t = 0.6; t <= 8.4; t += 0.2) { const r = 18 * t / 8.4; p += (p ? 'L' : 'M') + (x + Math.cos(t) * r).toFixed(1) + ' ' + (91 + Math.sin(t) * r).toFixed(1); } return `<path d="${p}" stroke="${glow}" stroke-width="8" fill="none" stroke-linecap="round"/>`; }).join('')}${mood === 'off' ? '' : ''}</svg>`;
+function dou(glow = '#fff4c2') {
+  let d = ''; for (let i = 0; i <= 360; i++) { const a = i / 360 * Math.PI * 2, r = 80 + 1.8 * Math.cos(a * 18); d += (i ? 'L' : 'M') + (100 + Math.cos(a) * r).toFixed(1) + ' ' + (105 + Math.sin(a) * r).toFixed(1); }
+  const eye = (x) => { let p = ''; for (let t = 0.6; t <= 8.4; t += 0.2) { const r = 17 * t / 8.4; p += (p ? 'L' : 'M') + (x + Math.cos(t) * r).toFixed(1) + ' ' + (92 + Math.sin(t) * r).toFixed(1); } return `<path d="${p}" stroke="${glow}" stroke-width="8" fill="none" stroke-linecap="round"/>`; };
+  return `<path d="${d}Z" fill="#2a2638" stroke="${glow}" stroke-width="7"/>${eye(77)}${eye(123)}`;
+}
+$('#logo').innerHTML = dou();
 
 let S = { status: null, devices: [], boards: [], ports: [], agents: ['main'], sel: null };
 
 // ---------- navigation ----------
 function show(v) {
   document.querySelectorAll('[data-pane]').forEach((p) => (p.hidden = p.dataset.pane !== v));
-  document.querySelectorAll('.nav button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
+  document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
   aicw.setState({ ...(aicw.getState() || {}), view: v });
   if (v === 'channels') loadChat();
   if (v === 'install' && !S.ports.length) scan();
 }
-document.querySelectorAll('.nav button').forEach((b) => (b.onclick = () => show(b.dataset.view)));
+document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => show(b.dataset.view)));
+document.querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => show(b.dataset.go)));
 
 // ---------- overview ----------
 async function loadStatus() {
   const st = await aicw.call('status', {});
   S.status = st;
-  const b = st.bridge || {};
-  const on = b.running;
-  $('#kBridge').textContent = on ? T('On|Đang bật') : st.settings.enabled === false ? T('Off|Đã tắt') : T('Starting…|Đang khởi động…');
-  $('#kBridgeSub').textContent = on ? (vi() ? 'từ ' : 'since ') + ago(b.startedAt) : '';
+  const b = st.bridge || {}, on = !!b.running, off = st.settings.enabled === false;
+  $('#pDot').className = 'dot ' + (on ? 'ok' : off ? 'bad' : 'warn');
+  $('#pText').textContent = on ? T('Bridge on|Cầu nối đang bật') : off ? T('Bridge off|Cầu nối đã tắt') : T('Starting…|Đang khởi động…');
+  $('#kBridge').textContent = on ? T('On|Đang bật') : off ? T('Off|Đã tắt') : T('Starting|Đang khởi động');
+  $('#kBridgeSub').textContent = on ? (vi() ? 'Bật từ ' : 'Since ') + ago(b.startedAt) : '';
   $('#hostId').textContent = 'relay:' + st.hostId;
   const rel = st.settings.relay ? (b.relay || '…') : 'off', lan = st.settings.lan ? (b.lan || '…') : 'off';
   $('#dRelay').className = 'dot ' + (rel === 'up' ? 'ok' : rel === 'off' ? '' : 'warn');
-  $('#tRelay').textContent = rel === 'up' ? T('ready|sẵn sàng') : rel === 'off' ? T('off|tắt') : rel;
-  $('#dLan').className = 'dot ' + (String(lan).startsWith('up') ? 'ok' : lan === 'off' ? '' : 'warn');
-  $('#tLan').textContent = String(lan).startsWith('up') ? (st.lanAddresses || []).map((a) => `${a}:${st.settings.lanPort}`).join(' · ') : lan === 'off' ? T('off|tắt') : lan;
+  $('#tRelay').textContent = rel === 'up' ? T('ready|sẵn sàng') : rel === 'off' ? T('off|đang tắt') : T('connecting|đang kết nối');
+  const lanUp = String(lan).startsWith('up');
+  $('#dLan').className = 'dot ' + (lanUp ? 'ok' : lan === 'off' ? '' : 'warn');
+  $('#tLanState').textContent = lanUp ? T('ready|sẵn sàng') : lan === 'off' ? T('off|đang tắt') : String(lan);
+  $('#tLan').textContent = lanUp ? (st.lanAddresses || []).map((a) => `${a}:${st.settings.lanPort}`).join('   ') : '';
   $('#bStart').hidden = on; $('#bStop').hidden = !on; $('#bRestart').hidden = !on;
   fillSettings(st.settings);
 }
+$('#cpHost').onclick = () => { (aicw.copy || navigator.clipboard.writeText.bind(navigator.clipboard))($('#hostId').textContent); toast(T('Copied|Đã sao chép'), 'good'); };
 $('#bStart').onclick = () => aicw.call('startBridge', {}).then(() => aicw.jobs.start('bridge', {})).then(() => setTimeout(loadStatus, 2500)).catch(fail('start'));
 $('#bStop').onclick = () => aicw.call('stopBridge', {}).then(() => setTimeout(loadStatus, 12000)).catch(fail('stop'));
-$('#bRestart').onclick = () => aicw.call('restartBridge', {}).then(() => setTimeout(loadStatus, 4000)).catch(fail('restart'));
+$('#bRestart').onclick = () => aicw.call('restartBridge', {}).then(() => { toast(T('Restarting…|Đang khởi động lại…')); setTimeout(loadStatus, 4000); }).catch(fail('restart'));
 
 // ---------- gadgets ----------
 async function loadDevices() {
   const { devices } = await aicw.call('listDevices', {});
   S.devices = devices;
-  const online = devices.filter((d) => d.online).length;
+  const online = devices.filter((d) => d.online && !d.pending).length;
   $('#kOnline').textContent = online;
-  $('#kTotal').textContent = devices.length + T(' gadgets| gadget');
+  $('#kTotal').textContent = vi() ? `trên ${devices.length} gadget` : `of ${devices.length} gadgets`;
+  $('#cGadgets').textContent = devices.length;
   const pending = devices.filter((d) => d.pending);
   $('#pendingAlert').hidden = !pending.length;
-  $('#pendingAlert').innerHTML = pending.map((d) => `${T('A new gadget wants to connect|Có gadget mới muốn kết nối')}: <b class="mono">${esc(d.mac)}</b> <button class="ui-btn sm primary" data-allow="${d.mac}">${T('Allow|Cho phép')}</button> <button class="ui-btn sm" data-deny="${d.mac}">${T('Block|Chặn')}</button>`).join('<br>');
+  $('#pendingAlert').innerHTML = pending.map((d) => `<span class="grow">${T('A new gadget wants to connect|Có gadget mới muốn kết nối')} · <span class="mono">${esc(d.mac)}</span></span><button class="ui-btn sm primary" data-allow="${d.mac}">${T('Allow|Cho phép')}</button><button class="ui-btn sm" data-deny="${d.mac}">${T('Block|Chặn')}</button>`).join('');
   $('#gadgetEmpty').hidden = !!devices.length;
   $('#gadgetList').innerHTML = devices.map((d) => {
     const tone = d.blocked ? 'bad' : d.pending ? 'warn' : d.online ? 'good' : '';
-    const label = d.blocked ? T('blocked|đã chặn') : d.pending ? T('waiting|chờ duyệt') : d.online ? (d.via === 'lan' ? 'LAN' : 'relay') : T('offline|ngoại tuyến');
-    return `<div class="gadget ui-list-item" data-mac="${d.mac}" style="cursor:pointer">${DOU(d.online ? '#7ee0c3' : '#8a85a0')}
-      <div><b>${esc(d.name || 'Dou')}</b> <span class="ui-badge ${tone}">${label}</span><div class="muted">${esc(d.board || d.device || '')} · <span class="mono">${esc(d.mac)}</span>${d.fwVersion ? ' · ' + esc(d.fwVersion) : ''}</div>
-      <div class="muted">${d.lastHeard ? '“' + esc(d.lastHeard) + '” · ' : ''}${ago(d.lastSeen || d.firstSeen)}</div></div>
-      <span class="muted">${esc(d.agent || S.status?.settings?.agent || 'main')}</span></div>`;
+    const label = d.blocked ? T('blocked|đã chặn') : d.pending ? T('waiting|chờ duyệt') : d.online ? (d.via === 'lan' ? T('online · Wi-Fi|trực tuyến · Wi-Fi') : T('online · relay|trực tuyến · relay')) : T('offline|ngoại tuyến');
+    return `<div class="gad${S.sel === d.mac ? ' sel' : ''}" data-mac="${d.mac}"><svg viewBox="-12 -12 224 229">${dou(d.online && !d.pending ? '#fff4c2' : '#77728c')}</svg>
+      <div><div class="name">${esc(d.name || 'Dou')} <span class="ui-badge ${tone}">${label}</span></div>
+      <div class="meta">${esc(boardName(d.board || d.device))} · <span class="mono">${esc(d.mac)}</span> · ${ago(d.lastSeen || d.firstSeen)}</div>
+      ${d.lastHeard ? `<div class="said">“${esc(d.lastHeard)}”</div>` : ''}</div>
+      <div class="agent">${T('agent|agent')}<br><b>${esc(d.agent || S.status?.settings?.agent || 'main')}</b></div></div>`;
   }).join('');
-  document.querySelectorAll('[data-mac]').forEach((el) => (el.onclick = () => edit(el.dataset.mac)));
+  document.querySelectorAll('.gad').forEach((el) => (el.onclick = () => edit(el.dataset.mac)));
   document.querySelectorAll('[data-allow]').forEach((b) => (b.onclick = () => aicw.call('updateDevice', { mac: b.dataset.allow, pending: false, blocked: false }).then(refresh).catch(fail('allow'))));
   document.querySelectorAll('[data-deny]').forEach((b) => (b.onclick = () => aicw.call('updateDevice', { mac: b.dataset.deny, pending: false, blocked: true }).then(refresh).catch(fail('deny'))));
   fillGadgetSelect();
+  if (S.sel && S.devices.some((d) => d.mac === S.sel)) edit(S.sel, true);
 }
-function edit(mac) {
+const boardName = (id) => (S.boards.find((b) => b.id === id || b.id === String(id || '').replace(/^dou-|^muse-/, ''))?.name) || (id === 'fake-stick' ? T('Test device|Thiết bị thử') : id || '');
+function edit(mac, quiet) {
   const d = S.devices.find((x) => x.mac === mac); if (!d) return;
   S.sel = mac;
+  document.querySelectorAll('.gad').forEach((el) => el.classList.toggle('sel', el.dataset.mac === mac));
   $('#editCard').hidden = false;
-  $('#editTitle').textContent = (d.name || 'Dou') + ' · ' + mac;
-  $('#eName').value = d.name || '';
-  $('#eAgent').innerHTML = ['', ...S.agents].map((a) => `<option value="${esc(a)}">${a ? esc(a) : T('(default)|(mặc định)')}</option>`).join('');
-  $('#eAgent').value = d.agent || '';
-  $('#eLang').value = d.language || '';
-  $('#eVoice').value = d.voice || '';
+  $('#editTitle').textContent = d.name || 'Dou';
+  $('#editSub').textContent = `${boardName(d.board || d.device)} · ${mac}${d.fwVersion ? ' · ' + d.fwVersion : ''}`;
+  if (!quiet || document.activeElement?.closest('#editCard') == null) {
+    $('#eName').value = d.name || '';
+    $('#eAgent').innerHTML = ['', ...S.agents].map((a) => `<option value="${esc(a)}">${a ? esc(a) : T('Default|Mặc định')} </option>`).join('');
+    $('#eAgent').value = d.agent || '';
+    $('#eLang').value = d.language || '';
+    $('#eVoice').value = d.voice || '';
+  }
   $('#eBlock').textContent = d.blocked || d.pending ? T('Allow|Cho phép') : T('Block|Chặn');
+  if (!quiet) $('#editCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
-$('#eSave').onclick = () => aicw.call('updateDevice', { mac: S.sel, name: $('#eName').value, agent: $('#eAgent').value, language: $('#eLang').value, voice: $('#eVoice').value }).then(refresh).catch(fail('save'));
-$('#eBlock').onclick = () => { const d = S.devices.find((x) => x.mac === S.sel); aicw.call('updateDevice', { mac: S.sel, blocked: !(d.blocked || d.pending), pending: false }).then(() => refresh().then(() => edit(S.sel))).catch(fail('block')); };
-$('#eRemove').onclick = () => { if (confirm(T('Forget this gadget?|Xoá gadget này?'))) aicw.call('removeDevice', { mac: S.sel }).then(() => { $('#editCard').hidden = true; refresh(); }).catch(fail('remove')); };
+$('#eSave').onclick = () => aicw.call('updateDevice', { mac: S.sel, name: $('#eName').value, agent: $('#eAgent').value, language: $('#eLang').value, voice: $('#eVoice').value }).then(() => { toast(T('Saved|Đã lưu'), 'good'); refresh(); }).catch(fail('save'));
+$('#eBlock').onclick = () => { const d = S.devices.find((x) => x.mac === S.sel); aicw.call('updateDevice', { mac: S.sel, blocked: !(d.blocked || d.pending), pending: false }).then(refresh).catch(fail('block')); };
+$('#eRemove').onclick = async () => {
+  const ok = aicw.ui && aicw.ui.confirm ? await aicw.ui.confirm(T('Forget this gadget? It must be allowed again to reconnect.|Xoá gadget này? Muốn kết nối lại phải cho phép lần nữa.'), { danger: true }) : confirm(T('Forget this gadget?|Xoá gadget này?'));
+  if (ok) aicw.call('removeDevice', { mac: S.sel }).then(() => { S.sel = null; $('#editCard').hidden = true; refresh(); }).catch(fail('remove'));
+};
 $('#eChat').onclick = () => { $('#chGadget').value = S.sel; show('channels'); };
-$('#bReload').onclick = () => refresh();
 
 // ---------- install ----------
 async function scan() {
@@ -260,15 +347,16 @@ async function scan() {
   try {
     const { ports } = await aicw.call('usbPorts', {});
     S.ports = ports;
-    $('#port').innerHTML = ports.length ? ports.map((p) => `<option value="${esc(p.path)}">${esc(p.path)}${p.maker ? ' — ' + esc(p.maker) : ''}</option>`).join('') : `<option value="">${T('No board found|Không thấy bo mạch')}</option>`;
+    $('#port').innerHTML = ports.length ? ports.map((p) => `<option value="${esc(p.path)}">${esc(p.maker || 'USB')} — ${esc(p.path.replace('/dev/', ''))}</option>`).join('') : `<option value="">${T('No board found — plug one in, then Scan again|Chưa thấy bo mạch — cắm vào rồi bấm Dò lại')}</option>`;
     onPort();
   } catch (e) { $('#port').innerHTML = `<option value="">${esc(e.message)}</option>`; }
 }
 function onPort() {
   const p = S.ports.find((x) => x.path === $('#port').value);
-  $('#s1').classList.toggle('done', !!p); $('#s2').classList.toggle('active', !!p);
-  $('#portInfo').innerHTML = p ? `USB ${esc(p.usb || '?')}${p.serial ? ' · <span class="mono">' + esc(p.serial) + '</span>' : ''}` : '';
-  if (p && p.boards?.length === 1) $('#board').value = p.boards[0];
+  $('#s1').classList.toggle('done', !!p); $('#s1').classList.toggle('active', !p); $('#s2').classList.toggle('active', !!p);
+  const known = p && S.devices.find((d) => d.mac === String(p.serial || '').toLowerCase().replace(/[^0-9a-f]/g, ''));
+  $('#portInfo').innerHTML = p ? `USB ${esc(p.usb || '?')}${p.serial ? ' · <span class="mono">' + esc(p.serial) + '</span>' : ''}${known ? ' · ' + T('already set up as|đã cài với tên') + ' <b>' + esc(known.name) + '</b>' : ''}` : '';
+  if (p && p.boards?.length) { const pick = p.boards.includes((aicw.getState() || {}).board) ? (aicw.getState() || {}).board : p.boards.includes('m5stack-sticks3') ? 'm5stack-sticks3' : p.boards[0]; $('#board').value = pick; }
   onBoard();
 }
 $('#port').onchange = onPort;
@@ -276,68 +364,73 @@ $('#bScan').onclick = scan;
 async function loadBoards() {
   const r = await aicw.call('boards', {});
   S.boards = r.boards;
-  const lab = { ready: T('tested|đã thử'), build: T('builds|có bản build'), port: T('not ready yet|chưa sẵn sàng') };
-  $('#board').innerHTML = r.boards.map((b) => `<option value="${b.id}">${esc(b.name)} — ${lab[b.aicw] || b.aicw}${b.available ? '' : ' · ' + T('no release|chưa phát hành')}</option>`).join('');
-  $('#kFw').textContent = r.release ? r.release.tag : T('None yet|Chưa có');
-  $('#kFwSub').textContent = r.release ? ago(Date.parse(r.release.publishedAt)) : r.error ? r.error : T('no release published|chưa phát hành bản nào');
-  const st = aicw.getState() || {};
-  if (st.board) $('#board').value = st.board; else $('#board').value = 'm5stack-sticks3';
+  const rank = { ready: 0, build: 1, port: 2 };
+  const groups = [['ready', T('Tested with AICW|Đã chạy thử với AICW')], ['build', T('Builds with AICW, not tested yet|Có bản build, chưa thử phần cứng')], ['port', T('Not supported yet|Chưa hỗ trợ')]];
+  $('#board').innerHTML = groups.map(([k, label]) => `<optgroup label="${esc(label)}">${r.boards.filter((b) => b.aicw === k).map((b) => `<option value="${b.id}" ${k === 'port' ? 'disabled' : ''}>${esc(b.name)}${b.available || k === 'port' ? '' : ' — ' + T('not released yet|chưa phát hành')}</option>`).join('')}</optgroup>`).join('');
+  $('#kFw').textContent = r.release ? r.release.tag : T('Not released|Chưa phát hành');
+  $('#kFwSub').textContent = r.release ? (vi() ? 'Phát hành ' : 'Released ') + ago(Date.parse(r.release.publishedAt)) : r.error ? r.error : T('Firmware comes from GitHub releases|Firmware lấy từ bản phát hành trên GitHub');
+  $('#board').value = (aicw.getState() || {}).board || 'm5stack-sticks3';
   onBoard();
+  if (S.devices.length) loadDevices().catch(() => {});
 }
 function onBoard() {
   const b = S.boards.find((x) => x.id === $('#board').value);
   if (!b) return;
   aicw.setState({ ...(aicw.getState() || {}), board: b.id });
-  const txt = { ready: T('Tested with AICW end to end.|Đã chạy thử với AICW từ đầu tới cuối.'), build: T('Builds with AICW; not tested on hardware yet.|Build được với AICW; chưa thử trên phần cứng.'), port: T('This board does not have the AICW voice link yet.|Bo mạch này chưa có kết nối giọng nói AICW.') };
-  $('#boardInfo').textContent = `${b.chip} · ${txt[b.aicw] || ''}`;
+  const chip = { esp32s3: 'ESP32-S3', esp32: 'ESP32', esp32c3: 'ESP32-C3', esp32c5: 'ESP32-C5', esp32c6: 'ESP32-C6' }[b.chip] || b.chip;
+  $('#boardInfo').textContent = `${chip}${b.available ? '' : ' · ' + T('No firmware released for this board yet.|Chưa có firmware phát hành cho bo mạch này.')}`;
   $('#bFlash').disabled = !$('#port').value || !b.available || b.aicw === 'port';
 }
 $('#board').onchange = onBoard;
 $('#bFlash').onclick = async () => {
   const port = $('#port').value, board = $('#board').value;
-  if (!confirm(T('Flashing replaces the firmware on this board. Continue?|Nạp sẽ thay firmware đang có trên bo mạch. Tiếp tục?'))) return;
+  const ok = aicw.ui && aicw.ui.confirm ? await aicw.ui.confirm(T('Flashing replaces the firmware on this board. Continue?|Nạp sẽ thay firmware đang có trên bo mạch. Tiếp tục?')) : confirm('OK?');
+  if (!ok) return;
   $('#flashBar').hidden = false; $('#bFlash').disabled = true;
   try {
     const r = await aicw.jobs.run('flashGadget', { port, board }, { onProgress: (j) => { $('#flashBar span').style.width = Math.round((j.progress || 0) * 100) + '%'; $('#flashNote').textContent = j.note || ''; } });
-    $('#flashNote').textContent = `${T('Done|Xong')}: ${r.version} · ${r.chip || ''}`;
+    $('#flashNote').textContent = `${T('Done|Xong')} · ${r.version}`;
     $('#s2').classList.add('done'); $('#s3').classList.add('active');
     refresh();
-  } catch (e) { $('#flashNote').textContent = T('Failed|Lỗi') + ': ' + e.message; }
-  finally { $('#bFlash').disabled = false; }
+  } catch (e) { $('#flashNote').textContent = T('Could not flash|Nạp không được') + ': ' + e.message; }
+  finally { onBoard(); }
 };
-$('#bReboot').onclick = () => aicw.call('rebootGadget', { port: $('#port').value }).then(() => ($('#flashNote').textContent = T('Restarted|Đã khởi động lại'))).catch(fail('reboot'));
+$('#bReboot').onclick = () => aicw.call('rebootGadget', { port: $('#port').value }).then(() => toast(T('Restarted|Đã khởi động lại'), 'good')).catch(fail('reboot'));
 $('#bSetup').onclick = async () => {
+  if (!$('#port').value) { toast(T('Plug a board in first|Hãy cắm bo mạch trước'), 'warn'); return; }
   $('#setupOut').textContent = T('Sending…|Đang gửi…');
   const st = S.status;
-  const host = $('#via').value === 'lan' ? `${(st.lanAddresses || [])[0]}:${st.settings.lanPort}` : undefined;
+  const lanIp = (st.lanAddresses || []).find((a) => a.startsWith('192.168.') && !a.startsWith('192.168.64.')) || (st.lanAddresses || [])[0];
+  const host = $('#via').value === 'lan' ? `${lanIp}:${st.settings.lanPort}` : undefined;
   try {
-    const r = await aicw.call('setupGadget', { port: $('#port').value, ssid: $('#ssid').value || undefined, password: $('#pass').value || undefined, host });
-    $('#pass').value = '';
+    const r = await aicw.call('setupGadget', { port: $('#port').value, ssid: $('#ssid').value || undefined, password: $('#wpass').value || undefined, host });
+    $('#wpass').value = '';
     const s = r.status || {};
     $('#setupOut').innerHTML = `Wi-Fi: <b>${s.wifi ? T('connected|đã nối') : T('not yet|chưa nối')}</b> · AICW: <b>${esc(s.detail || s.state || '?')}</b>`;
-    if (s.state === 'Connected') { $('#s3').classList.add('done'); }
+    if (s.state === 'Connected') $('#s3').classList.add('done');
     refresh();
   } catch (e) { $('#setupOut').textContent = e.message; }
 };
-$('#bStatus').onclick = () => aicw.call('gadgetStatus', { port: $('#port').value }).then((r) => { $('#setupOut').innerHTML = r.gadget ? `Wi-Fi: <b>${r.gadget.wifi ? T('connected|đã nối') : T('not yet|chưa nối')}</b> · <span class="mono">${esc(r.gadget.host)}</span> · <b>${esc(r.gadget.detail || r.gadget.state)}</b>` : T('This board does not run AICW Gadgets yet (or is still starting).|Bo mạch chưa chạy AICW Gadgets (hoặc đang khởi động).'); }).catch(fail('status'));
-$('#bLog').onclick = () => { $('#logOut').hidden = false; $('#logOut').textContent = T('Reading…|Đang đọc…'); aicw.call('gadgetLog', { port: $('#port').value, seconds: 6 }).then((r) => ($('#logOut').textContent = r.text || T('(nothing)|(không có gì)'))).catch(fail('log')); };
+$('#bStatus').onclick = () => aicw.call('gadgetStatus', { port: $('#port').value }).then((r) => { $('#setupOut').innerHTML = r.gadget ? `Wi-Fi: <b>${r.gadget.wifi ? T('connected|đã nối') : T('not yet|chưa nối')}</b> · <b>${esc(r.gadget.detail || r.gadget.state)}</b><br><span class="mono">${esc(r.gadget.host)}</span>` : T('This board does not run AICW Gadgets yet, or is still starting.|Bo mạch chưa chạy AICW Gadgets, hoặc đang khởi động.'); }).catch(fail('status'));
+$('#bLog').onclick = () => { $('#logOut').hidden = false; $('#logOut').textContent = T('Reading for 6 seconds…|Đang đọc 6 giây…'); aicw.call('gadgetLog', { port: $('#port').value, seconds: 6 }).then((r) => ($('#logOut').textContent = r.text || T('(nothing)|(không có gì)'))).catch(fail('log')); };
 
-// ---------- channels ----------
+// ---------- conversations ----------
 function fillGadgetSelect() {
   const cur = $('#chGadget').value || (aicw.getState() || {}).chat;
-  $('#chGadget').innerHTML = S.devices.filter((d) => !d.pending).map((d) => `<option value="${d.mac}">${esc(d.name || 'Dou')} · ${d.mac}</option>`).join('') || `<option value="">${T('No gadget|Chưa có gadget')}</option>`;
-  if (cur && S.devices.some((d) => d.mac === cur)) $('#chGadget').value = cur;
+  const list = S.devices.filter((d) => !d.pending);
+  $('#chGadget').innerHTML = list.map((d) => `<option value="${d.mac}">${esc(d.name || 'Dou')} · ${d.mac}</option>`).join('') || `<option value="">${T('No gadget yet|Chưa có gadget')}</option>`;
+  if (cur && list.some((d) => d.mac === cur)) $('#chGadget').value = cur;
 }
 async function loadChat() {
-  const mac = $('#chGadget').value; if (!mac) { $('#chat').innerHTML = ''; return; }
+  const mac = $('#chGadget').value; if (!mac) { $('#chat').innerHTML = `<div class="empty">${T('No gadget yet.|Chưa có gadget.')}</div>`; return; }
   aicw.setState({ ...(aicw.getState() || {}), chat: mac });
-  $('#chat').innerHTML = `<div class="muted">${T('Loading…|Đang tải…')}</div>`;
+  $('#chat').innerHTML = `<div class="empty">${T('Loading…|Đang tải…')}</div>`;
   try {
     const r = await aicw.call('channelHistory', { mac, limit: 40 });
     $('#chKey').textContent = r.sessionKey;
-    $('#chat').innerHTML = r.messages.length ? r.messages.map((m) => `<div class="msg ${m.role}">${esc(m.text)}</div>`).join('') : `<div class="ui-empty">${T('No conversation yet. Hold the button on the gadget and talk.|Chưa có cuộc trò chuyện. Giữ nút trên gadget và nói.')}</div>`;
+    $('#chat').innerHTML = r.messages.length ? r.messages.map((m) => `<div class="msg ${m.role}">${esc(m.text)}</div>`).join('') : `<div class="empty">${T('No conversation yet. Hold the button on the gadget and talk.|Chưa có hội thoại. Giữ nút trên gadget và nói.')}</div>`;
     $('#chat').scrollTop = 1e9;
-  } catch (e) { $('#chat').innerHTML = `<div class="ui-alert">${esc(e.message)}</div>`; }
+  } catch (e) { $('#chat').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 $('#chGadget').onchange = loadChat;
 $('#chReload').onclick = loadChat;
@@ -345,7 +438,8 @@ $('#chSend').onclick = async () => {
   const text = $('#chText').value.trim(), mac = $('#chGadget').value; if (!text || !mac) return;
   const d = S.devices.find((x) => x.mac === mac) || {};
   $('#chText').value = '';
-  $('#chat').insertAdjacentHTML('beforeend', `<div class="msg user">${esc(text)}</div><div class="msg assistant muted" id="typing">…</div>`);
+  $('#chat').insertAdjacentHTML('beforeend', `<div class="msg user">${esc(text)}</div><div class="msg assistant">…</div>`);
+  $('#chat').scrollTop = 1e9;
   try { await aicw.call('probeAgent', { text, mac, agent: d.agent || S.status?.settings?.agent || 'main' }); } catch (e) { fail('send')(e); }
   loadChat();
 };
@@ -353,7 +447,7 @@ $('#chText').onkeydown = (e) => { if (e.key === 'Enter') $('#chSend').click(); }
 
 // ---------- settings ----------
 function fillSettings(s) {
-  if (document.activeElement && document.activeElement.closest('[data-pane="settings"]')) return;
+  if (!s || document.activeElement?.closest('[data-pane="settings"]')) return;
   $('#sAgent').innerHTML = S.agents.map((a) => `<option>${esc(a)}</option>`).join('');
   $('#sAgent').value = s.agent; $('#sLang').value = s.language || 'vi'; $('#sPort').value = s.lanPort; $('#sVoice').value = s.voice || '';
   $('#sRelay').checked = !!s.relay; $('#sLan').checked = !!s.lan; $('#sOpen').checked = !!s.open;
@@ -362,7 +456,7 @@ $('#sSave').onclick = () => aicw.call('updateSettings', {
   agent: $('#sAgent').value, language: $('#sLang').value, lanPort: Number($('#sPort').value) || 8765, voice: $('#sVoice').value,
   relay: $('#sRelay').checked, lan: $('#sLan').checked, open: $('#sOpen').checked,
   sttEngine: window.AicwApp ? AicwApp.speechEngine('stt') : 'auto', ttsEngine: window.AicwApp ? AicwApp.speechEngine('tts') : 'auto',
-}).then(() => { $('#sOut').textContent = T('Saved. The bridge restarts in a few seconds.|Đã lưu. Cầu nối sẽ khởi động lại sau vài giây.'); setTimeout(loadStatus, 6000); }).catch(fail('settings'));
+}).then(() => { $('#sOut').textContent = T('Saved. The bridge restarts in a few seconds.|Đã lưu. Cầu nối khởi động lại sau vài giây.'); setTimeout(loadStatus, 6000); }).catch(fail('settings'));
 
 // ---------- start ----------
 async function refresh() { await Promise.all([loadStatus().catch(fail('status')), loadDevices().catch(fail('devices'))]); }
@@ -371,8 +465,7 @@ aicw.on('event:bridge', () => loadStatus().catch(() => {}));
 aicw.on('visible', refresh);
 translate();
 show((aicw.getState() || {}).view || 'home');
-refresh();
-loadBoards().catch(fail('boards'));
+refresh().then(() => loadBoards().catch(fail('boards')));
 aicw.call('agents', {}).then((r) => { if (r?.agents?.length) { S.agents = r.agents; if (S.status) fillSettings(S.status.settings); } }).catch(() => {});
 setInterval(() => { if (aicw.visible !== false) loadStatus().catch(() => {}); }, 15000);
 </script>

@@ -214,7 +214,9 @@ export const commands = {
     const b = (await ctx.store.get('bridgeStatus')) || null; // aicw:shared
     const running = b && b.beat && Date.now() - b.beat < 90_000;
     const os = await import('node:os');
-    const ips = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
+    // Real Wi-Fi / Ethernet first; skip VPN (100.64/10), VM bridges and docker-style ranges.
+    const skip = (n, a) => /^(utun|tun|tap|bridge|vmnet|vbox|docker|veth|llw|awdl|zt|tailscale|wg)/i.test(n) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(a) || /^169\.254\./.test(a);
+    const ips = Object.entries(os.networkInterfaces()).flatMap(([n, l]) => (l || []).filter((i) => i.family === 'IPv4' && !i.internal && !skip(n, i.address)).map((i) => i.address));
     return { hostId: idn.id, settings: s, bridge: { ...(b || {}), running: !!running }, lanAddresses: ips };
   },
 
@@ -412,8 +414,15 @@ export const commands = {
   // (the keep-alive timer starts the next one).
   async bridge(_a, ctx) {
     if ((await settings(ctx)).enabled === false) return { disabled: true };
-    const prev = (await ctx.store.get('bridgeStatus')) || {}; // aicw:shared
-    if (prev.beat && Date.now() - prev.beat < 40_000 && prev.pid !== process.pid + ':' + (ctx.job?.id || '')) return { alreadyRunning: true };
+    // Another bridge alive? Its heartbeat is every 10 s: wait 25 s and look again, so a bridge
+    // that is just being stopped (or was killed) does not keep the new one from starting.
+    const alive = async () => { const b = (await ctx.store.get('bridgeStatus')) || {}; return b.beat && Date.now() - b.beat < 22_000 ? b : null; }; // aicw:shared
+    const first = await alive();
+    if (first) {
+      await new Promise((r) => setTimeout(r, 25_000));
+      const again = await alive();
+      if (again && again.beat !== first.beat) return { alreadyRunning: true };
+    }
     const me = process.pid + ':' + (ctx.job?.id || crypto.randomUUID());
     const idn = await hostIdentity(ctx);
     const startedAt = Date.now();
@@ -440,14 +449,15 @@ export const commands = {
       while (!ac.signal.aborted) {
         await beat();
         ctx.job?.progress(0, `relay ${relay} · LAN ${lan} · ${live.size} online`);
-        await new Promise((r) => setTimeout(r, 10000));
+        await new Promise((r) => { const t = setTimeout(r, 10000); ac.signal.addEventListener('abort', () => { clearTimeout(t); r(); }, { once: true }); });
+        if (ac.signal.aborted) break;
         const stop = (await ctx.store.get('stopBridge')) || 0; // aicw:shared
         const restart = (await ctx.store.get('restartBridge')) || 0; // aicw:shared
         const owner = ((await ctx.store.get('bridgeStatus')) || {}).pid; // aicw:shared
         if (stop > stop0 || Date.now() - startedAt > 5.5 * 3600_000 || (owner && owner !== me)) outer.abort();
         else if (restart > restartMark) { restartMark = restart; ac.abort(); }
       }
-      srv?.close();
+      if (srv) await new Promise((r) => { srv.close(() => r()); srv.closeAllConnections?.(); setTimeout(r, 3000); });
       await relayRun.catch(() => {});
     }
     const cur = (await ctx.store.get('bridgeStatus')) || {}; // aicw:shared
