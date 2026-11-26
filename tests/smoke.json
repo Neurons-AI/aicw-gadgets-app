@@ -1,0 +1,12 @@
+[
+  {
+    "command": "hello",
+    "args": {
+      "name": "Lan"
+    },
+    "expect": {
+      "message": "Hello Lan!",
+      "visits": 1
+    }
+  }
+]

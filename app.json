@@ -1,0 +1,40 @@
+{
+  "schema": "aicw.app.v1",
+  "name": "AICW Gadgets",
+  "icon": "📟",
+  "version": "0.1.0",
+  "description": "Flash, set up and talk to AICW voice gadgets (Dou on an M5Stack StickS3 and other ESP32 boards) from your own AICoworker.",
+  "window": {
+    "entry": "assets/app.html",
+    "style": "clean",
+    "session": "dedicated"
+  },
+  "backend": {
+    "runtime": "node",
+    "entry": "backend/main.mjs",
+    "commands": {
+      "hello": {
+        "description": "Example command — replace it with your own.",
+        "mutating": true,
+        "args": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "permissions": {
+    "llm": false,
+    "agent": false,
+    "host": [],
+    "schedule": false
+  },
+  "secrets": [],
+  "requires": {
+    "aicoworker": ">=2026.8.1"
+  }
+}

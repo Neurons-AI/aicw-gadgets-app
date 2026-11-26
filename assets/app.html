@@ -1,0 +1,33 @@
+<!-- The page of AICW Gadgets. Design it freely: any layout, any of the 12 style presets
+     (app.json → window.style), your own CSS, libraries via window.libs. The ui-* classes
+     and window.aicw are there to use, not a limit. Guides: references/page.md and the
+     artifact-design skill. -->
+<div class="ui-app narrow">
+  <header class="ui-header">
+    <div>
+      <h1 class="ui-title">📟 AICW Gadgets</h1>
+      <p class="ui-subtitle">Flash, set up and talk to AICW voice gadgets (Dou on an M5Stack StickS3 and other ESP32 boards) from your own AICoworker.</p>
+    </div>
+  </header>
+
+  <div class="ui-card ui-stack">
+    <div class="ui-row">
+      <input class="ui-input ui-grow" id="name" placeholder="Your name">
+      <button class="ui-btn primary" id="go" type="button">Say hello</button>
+    </div>
+    <div class="ui-alert info ui-hidden" id="out"></div>
+    <div class="ui-alert bad ui-hidden" id="error"></div>
+  </div>
+</div>
+
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+  $('go').onclick = function () {
+    var btn = this; aicw.ui.busy(btn, true); $('error').classList.add('ui-hidden');
+    // A backend command: runs on the machine with no model turn.
+    aicw.call('hello', { name: $('name').value.trim() })
+      .then(function (r) { $('out').textContent = r.message + ' (' + r.visits + ')'; $('out').classList.remove('ui-hidden'); },
+            function (e) { $('error').textContent = e.message; $('error').classList.remove('ui-hidden'); })
+      .then(function () { aicw.ui.busy(btn, false); });
+  };
+</script>

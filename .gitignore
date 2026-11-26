@@ -1,0 +1,8 @@
+.aicw-dev/
+node_modules/
+__pycache__/
+.aicw-fix/
+.venv/
+dist-pack/
+data/
+logs/
