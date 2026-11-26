@@ -18,7 +18,8 @@
   .top p { margin: 2px 0 0; color: var(--ui-muted-fg); font-size: 14px; }
   .top .grow { flex: 1; min-width: 0; }
 
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--ui-border); margin-bottom: 22px; overflow-x: auto; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--ui-border); margin-bottom: 22px; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
   .tabs button { appearance: none; border: 0; background: none; color: var(--ui-muted-fg); font: inherit; font-size: 15px; padding: 10px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; }
   .tabs button.on { color: var(--ui-fg); border-bottom-color: var(--ui-accent); font-weight: 600; }
 
@@ -352,7 +353,7 @@ async function loadDevices() {
     return `<div class="g"><div class="who"><svg viewBox="0 0 200 210">${dou(on ? '#ffe9a8' : '#8b8799', !on)}</svg><div><div class="name">${esc(d.name || 'Dou')}</div>
       <div class="state ${on ? 'on' : ''}"><i></i>${on ? T('Ready to talk|Sẵn sàng trò chuyện') : T('Asleep or offline|Đang ngủ hoặc ngoại tuyến')}${!on && d.lastSeen ? ' · ' + ago(d.lastSeen) : ''}</div></div></div>
       <div class="meta">${T('Talks to|Trò chuyện với')} <b>${esc(agentName(d.agent || def))}</b>${d.lastTurnAt ? `<br>${T('Last chat|Lần nói gần nhất')}: ${ago(d.lastTurnAt)}` : ''}</div>
-      ${d.lastError && (!d.lastTurnAt || d.lastError.at > d.lastTurnAt) ? `<div class="small" style="color:var(--ui-bad);line-height:1.45">${esc(d.lastError.text)} · ${ago(d.lastError.at)}<br><span class="muted">${esc(d.lastError.detail || '')}</span></div>` : ''}
+      ${d.lastError && (!d.lastTurnAt || d.lastError.at > d.lastTurnAt) ? `<div class="small" style="color:var(--ui-bad);line-height:1.45" title="${esc(d.lastError.detail || '')}">⚠ ${esc(d.lastError.text)} · ${ago(d.lastError.at)}</div>` : ''}
       <div class="acts"><button class="btn" data-chat="${esc(d.mac)}">${T('Conversation|Hội thoại')}</button><button class="btn" data-edit="${esc(d.mac)}">${T('Edit|Sửa')}</button><button class="btn link" data-del="${esc(d.mac)}">${T('Remove|Gỡ')}</button></div></div>`;
   }).join('') + `<button class="add-tile" data-add><div><div class="plus">+</div><b>${T('Add a gadget|Thêm gadget')}</b></div></button>`;
   $('#grid').querySelectorAll('[data-chat]').forEach((b) => (b.onclick = () => { S.chat = b.dataset.chat; show('chat'); }));

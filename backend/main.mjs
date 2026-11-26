@@ -92,6 +92,28 @@ async function targetHost(ctx) {
 }
 const bleAnswers = new Map(); // jobId -> resolve
 
+// ---------- speech engines: try in order until one works ----------
+const eng = (e) => (e === 'local:gemma' ? { engine: 'local', model: 'gemma' } : e && e !== 'auto' ? { engine: e } : {});
+function sttOrder(chosen) {
+  const list = [chosen && chosen !== 'auto' ? chosen : null, 'local', 'local:gemma', 'auto'];
+  return [...new Set(list.filter(Boolean))];
+}
+function ttsOrder(chosen) {
+  const list = [chosen && chosen !== 'auto' ? chosen : null, 'local', 'edge', 'auto'];
+  return [...new Set(list.filter(Boolean))];
+}
+const speechOk = new Map(); // kind -> engine that worked last (tried first next time)
+async function firstWorking(ctx, kind, order, call) {
+  const last = speechOk.get(kind);
+  if (last && order.includes(last)) order = [last, ...order.filter((e) => e !== last)];
+  let lastErr;
+  for (const e of order) {
+    try { const r = await call(eng(e)); speechOk.set(kind, e); return r; }
+    catch (err) { lastErr = err; ctx.log.warn(`${kind} via ${e} failed: ${String(err?.message || err).slice(0, 160)}`); }
+  }
+  throw lastErr || new Error(kind + ' unavailable');
+}
+
 async function askAgent(ctx, agent, mac, text) {
   const out = await ctx.host.tool('sessions_send', { sessionKey: sessionKeyOf(agent, mac), message: text, timeoutSeconds: 180 });
   const d = out?.details || {};
@@ -117,16 +139,10 @@ function serveGadget(ctx, ch, via, live) {
         const f = await ctx.files.put({ name: `turn-${st.mac}-${id}.wav`, data: pcmToWav(pcm), mime: 'audio/wav' });
         try {
           const lang = dev.language || s.language;
-          const eng = s.sttEngine || 'auto';
-          let r;
-          try { r = await ctx.host.stt({ file: f.id, language: lang, engine: eng }); }
-          catch (e) {
-            // The chosen engine may not exist on this computer (settings come from another
-            // machine, a model pack not downloaded yet): fall back to whatever works here.
-            ctx.log.warn(`stt (${eng}) failed: ${e?.message || e}`);
-            if (eng === 'auto') throw e;
-            r = await ctx.host.stt({ file: f.id, language: lang });
-          }
+          // Speech never stops on one engine: the chosen one first, then this computer's own
+          // (Whisper, then Gemma), then whatever else is set up. A cloud quota that ran out,
+          // a model pack not downloaded or a provider not signed in just moves to the next one.
+          const r = await firstWorking(ctx, 'stt', sttOrder(s.sttEngine), (o) => ctx.host.stt({ file: f.id, language: lang, ...o }));
           text = String(r?.text || '').trim().replace(/^Transcription:\s*/i, '').replace(/^"(.*)"$/s, '$1');
         } finally { ctx.files.remove(f.id).catch(() => {}); }
         if (st.turn !== id) return;
@@ -139,13 +155,7 @@ function serveGadget(ctx, ch, via, live) {
       send({ type: 'reply', id, text: say || reply });
       if (say && pcm !== undefined) {
         const voice = dev.voice || s.voice ? { voice: dev.voice || s.voice } : {};
-        let tts;
-        try { tts = await ctx.host.tts({ text: say, engine: s.ttsEngine || 'auto', ...voice }); }
-        catch (e) {
-          ctx.log.warn(`tts (${s.ttsEngine || 'auto'}) failed: ${e?.message || e}`);
-          if ((s.ttsEngine || 'auto') === 'auto') throw e;
-          tts = await ctx.host.tts({ text: say });
-        }
+        const tts = await firstWorking(ctx, 'tts', ttsOrder(s.ttsEngine), (o) => ctx.host.tts({ text: say, ...voice, ...o }));
         const wav = await import('node:fs').then((fs) => ctx.files.path(tts.file.id).then((p) => fs.promises.readFile(p)));
         ctx.files.remove(tts.file.id).catch(() => {});
         const out = wavToPcm16(wav, RATE);
@@ -220,9 +230,10 @@ function serveGadget(ctx, ch, via, live) {
 function friendly(e) {
   const m = String(e?.message || e);
   if (/timeout|quá lâu/i.test(m)) return 'Trợ lý trả lời quá lâu';
-  if (/no (speech|stt)|not (available|configured)|provider|model_pack|missing/i.test(m)) return 'Máy chủ chưa có bộ nghe giọng nói';
-  if (/stt|speech|transcri/i.test(m)) return 'Không nghe được: ' + m.slice(0, 40);
+  if (/quota|used up|top ?up|Buy more/i.test(m)) return 'Hết lượt nghe giọng nói trên cloud, máy chủ chưa có bộ nghe trên máy';
+  if (/model_pack|not installed|missing|not (available|configured)|no (speech|stt)/i.test(m)) return 'Máy chủ chưa có bộ nghe giọng nói';
   if (/tts/i.test(m)) return 'Không đọc được câu trả lời';
+  if (/stt|speech|transcri/i.test(m)) return 'Không nghe được';
   return m.slice(0, 60);
 }
 
