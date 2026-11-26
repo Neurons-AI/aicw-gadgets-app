@@ -135,11 +135,27 @@ async function firstWorking(ctx, kind, order, call) {
 }
 
 // On a setup computer: ask the AI computer it is linked to (list or change its gadgets).
-async function askTarget(ctx, msg) {
+// The relay keeps ONE connection per key: two calls at the same moment with this computer's
+// setup key knock each other off. So calls to the AI computer go one at a time, and a call
+// that was knocked off ("offline" at once) is tried once more.
+let targetQueue = Promise.resolve();
+function askTarget(ctx, msg) {
+  const run = targetQueue.then(() => askTargetNow(ctx, msg));
+  targetQueue = run.catch(() => {});
+  return run;
+}
+async function askTargetNow(ctx, msg) {
   const t = await targetHost(ctx);
   if (t.self || !String(t.host).startsWith('relay:')) return null;
   const sid = await setupIdentity(ctx);
-  const r = await askHost(sid, t.host.slice(6), { ...msg, id: sid.id }, { timeoutMs: 15000 });
+  const timeoutMs = msg.check ? 90000 : 15000;
+  let r;
+  try { r = await askHost(sid, t.host.slice(6), { ...msg, id: sid.id }, { timeoutMs }); }
+  catch (e) {
+    if (String(e?.message) !== 'offline') throw e;
+    await new Promise((res) => setTimeout(res, 700));
+    r = await askHost(sid, t.host.slice(6), { ...msg, id: sid.id }, { timeoutMs });
+  }
   if (r.type === 'setup_refused') {
     // The AI computer disconnected this one: drop the link here too, so both sides agree.
     await ctx.store.delete('targetHost'); // aicw:shared
