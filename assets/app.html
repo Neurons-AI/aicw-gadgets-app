@@ -283,6 +283,9 @@
 </dialog>
 
 <script>
+(() => {
+'use strict';
+try {
 const $ = (s) => document.querySelector(s);
 const vi = () => String(aicw.locale || navigator.language || '').toLowerCase().startsWith('vi');
 const T = (s) => { const [en, v] = s.split('|'); return vi() && v ? v : en; };
@@ -593,6 +596,8 @@ aicw.on('event:devices', () => loadDevices().catch(() => {}));
 aicw.on('event:bridge', () => loadStatus().catch(() => {}));
 aicw.on('visible', refresh);
 setInterval(() => { if (aicw.visible !== false && $('#wiz').hidden) refresh(); }, 15000);
+} catch (e) { console.error('page start', e); document.body.insertAdjacentHTML('beforeend', '<pre style="color:#c00;padding:16px">' + String(e && e.stack || e) + '</pre>'); }
+})();
 </script>
 </body>
 </html>
