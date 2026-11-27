@@ -840,10 +840,18 @@ export const commands = {
     // that is just being stopped (or was killed) does not keep the new one from starting.
     const alive = async () => { const b = (await ctx.store.get('bridgeStatus')) || {}; return b.beat && Date.now() - b.beat < 22_000 ? b : null; }; // aicw:shared
     const first = await alive();
-    if (first && first.version === CODE_VERSION) {
+    // AICoworker stops any job after 30 minutes. A bridge older than 12 minutes hands over to
+    // the one the 15-minute timer just started, so no bridge ever reaches that limit (it used to
+    // be killed every 30 minutes, and gadgets lost their link for half a minute each time).
+    if (first && first.version === CODE_VERSION && Date.now() - (first.startedAt || 0) < 12 * 60_000) {
       await new Promise((r) => setTimeout(r, 25_000));
       const again = await alive();
       if (again && again.beat !== first.beat) return { alreadyRunning: true };
+    } else if (first && first.version === CODE_VERSION) {
+      ctx.log.info('bridge handover (running ' + Math.round((Date.now() - first.startedAt) / 60_000) + ' min)');
+      await ctx.store.set('bridgeStatus', { ...first, pid: 'handover:' + Date.now(), beat: Date.now() }); // aicw:shared
+      // The old one looks every 1.5 s and closes its relay link; wait for that before opening ours.
+      for (let i = 0; i < 16; i++) { await new Promise((r) => setTimeout(r, 500)); const b = (await ctx.store.get('bridgeStatus')) || {}; if (b.released) break; } // aicw:shared
     } else if (first) {
       // A bridge from an older version of the app is running: take over. Claiming bridgeStatus
       // makes it stop within ~10 s; wait for that before opening the same relay identity.
@@ -887,7 +895,11 @@ export const commands = {
           // Wakes early when the page queued a Wi-Fi change, so it goes out within ~2 s.
           const done = () => { clearTimeout(t); clearInterval(q); r(); };
           const t = setTimeout(done, 10000);
-          const q = setInterval(async () => { if (Object.keys((await ctx.store.get('wifiQueue')) || {}).length) done(); }, 1500); // aicw:shared
+          const q = setInterval(async () => {
+            if (Object.keys((await ctx.store.get('wifiQueue')) || {}).length) done(); // aicw:shared
+            const o = ((await ctx.store.get('bridgeStatus')) || {}).pid; // aicw:shared
+            if (o && o !== me) done();   // a newer bridge took over: hand the relay over quickly
+          }, 1500);
           ac.signal.addEventListener('abort', done, { once: true });
         });
         if (ac.signal.aborted) break;
@@ -900,6 +912,7 @@ export const commands = {
       if (srv) await new Promise((r) => { srv.close(() => r()); srv.closeAllConnections?.(); setTimeout(r, 3000); });
       await relayRun.catch(() => {});
     }
+    { const b = (await ctx.store.get('bridgeStatus')) || {}; if (b.pid && b.pid !== me && !b.released) await ctx.store.set('bridgeStatus', { ...b, released: Date.now() }); } // aicw:shared
     const cur = (await ctx.store.get('bridgeStatus')) || {}; // aicw:shared
     if (cur.pid === me) await ctx.store.set('bridgeStatus', { beat: 0, stoppedAt: Date.now(), hostId: idn.id }); // aicw:shared
     ctx.events.emit('bridge', { relay: 'off', lan: 'off', online: 0 }, { to: 'all' });
